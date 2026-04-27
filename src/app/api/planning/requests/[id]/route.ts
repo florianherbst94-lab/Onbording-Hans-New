@@ -19,33 +19,42 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     if (startDate) updateData.startDate = new Date(startDate)
     if (endDate) updateData.endDate = new Date(endDate)
 
-    const request = await prisma.availabilityRequest.update({
-      where: { id },
-      data: updateData
+    await prisma.$transaction(async (tx) => {
+      await tx.availabilityRequest.update({
+        where: { id },
+        data: updateData
+      })
+
+      if (days && Array.isArray(days)) {
+        await tx.availabilityDay.deleteMany({
+          where: { requestId: id }
+        })
+
+        if (days.length > 0) {
+          await tx.availabilityDay.createMany({
+            data: days.map((d: any) => ({
+              requestId: id,
+              date: new Date(d.date),
+              eventName: d.eventName || null,
+              note: d.note || null
+            }))
+          })
+        }
+      }
     })
 
-    // If days array is provided, recreate them
-    if (days && Array.isArray(days)) {
-      // Delete old days (cascade will delete responses too)
-      await prisma.availabilityDay.deleteMany({
-        where: { requestId: id }
-      })
+    const updatedRequest = await prisma.availabilityRequest.findUnique({
+      where: { id },
+      include: { days: true }
+    })
 
-      // Create new days
-      await prisma.availabilityDay.createMany({
-        data: days.map((d: any) => ({
-          requestId: id,
-          date: new Date(d.date),
-          eventName: d.eventName || null,
-          note: d.note || null
-        }))
-      })
-    }
-
-    return NextResponse.json(request)
+    return NextResponse.json(updatedRequest)
   } catch (error) {
-    console.error("PUT /api/planning/requests/[id]", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("PUT /api/planning/requests/[id] - Error updating request:", error)
+    return NextResponse.json(
+      { error: "Fehler beim Aktualisieren der Abfrage", details: (error as Error).message }, 
+      { status: 500 }
+    )
   }
 }
 
@@ -64,7 +73,10 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     return new NextResponse(null, { status: 204 })
   } catch (error) {
-    console.error("DELETE /api/planning/requests/[id]", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("DELETE /api/planning/requests/[id] - Error deleting request:", error)
+    return NextResponse.json(
+      { error: "Fehler beim Löschen der Abfrage", details: (error as Error).message }, 
+      { status: 500 }
+    )
   }
 }

@@ -10,6 +10,14 @@
   font-weight: 500;
   color: var(--secondary-foreground);
   padding-left: 0.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.required {
+  color: var(--error);
+  font-weight: 700;
 }
 
 .input {

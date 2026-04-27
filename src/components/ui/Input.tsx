@@ -11,7 +11,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className = '', label, error, ...props }, ref) => {
     return (
       <div className={styles.wrapper}>
-        {label && <label className={styles.label} htmlFor={props.id}>{label}</label>}
+        {label && (
+          <label className={styles.label} htmlFor={props.id}>
+            {label}
+            {props.required && <span className={styles.required}>*</span>}
+          </label>
+        )}
         <input 
           ref={ref}
           className={clsx(

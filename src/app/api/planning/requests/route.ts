@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         endDate: new Date(endDate),
         status: "DRAFT",
         days: {
-          create: days.map((d: any) => ({
+          create: (days || []).map((d: any) => ({
             date: new Date(d.date),
             eventName: d.eventName || null,
             note: d.note || null
@@ -59,7 +59,10 @@ export async function POST(req: Request) {
 
     return NextResponse.json(request)
   } catch (error) {
-    console.error("POST /api/planning/requests", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("POST /api/planning/requests - Error creating request:", error)
+    return NextResponse.json(
+      { error: "Fehler beim Erstellen der Abfrage", details: (error as Error).message }, 
+      { status: 500 }
+    )
   }
 }

@@ -58,64 +58,72 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { dayId, date, eventName, note, status, rows } = body
+    const { dayId, date, eventName, note, status, rows, assignments } = body
+    
+    // Normalize rows/assignments
+    const normalizedRows = rows || assignments || []
 
-    if (!dayId) return new NextResponse("Missing dayId", { status: 400 })
+    if (!dayId) return NextResponse.json({ error: "Fehler", details: "Fehler: dayId fehlt" }, { status: 400 })
 
-    const existingPlan = await prisma.staffPlanDay.findUnique({
-      where: { dayId }
-    })
-
-    let plan: any
-    if (existingPlan) {
-      plan = await prisma.staffPlanDay.update({
-        where: { id: existingPlan.id },
-        data: { status, note, eventName },
+    const plan = await prisma.$transaction(async (tx) => {
+      const existingPlan = await tx.staffPlanDay.findUnique({
+        where: { dayId }
       })
 
-      // Delete old rows and recreate
-      await prisma.staffPlanRow.deleteMany({
-        where: { planId: plan.id }
-      })
-
-      if (rows && rows.length > 0) {
-        await prisma.staffPlanRow.createMany({
-          data: rows.map((r: any, i: number) => ({
-            planId: plan.id,
-            sortOrder: i,
-            assignmentLabel: r.assignmentLabel,
-            employeeId: r.employeeId || null,
-            startTime: r.startTime || null,
-            endTime: r.endTime || null,
-            note: r.note || null,
-          }))
+      let p: any
+      if (existingPlan) {
+        p = await tx.staffPlanDay.update({
+          where: { id: existingPlan.id },
+          data: { status, note, eventName },
         })
-      }
-    } else {
-      plan = await prisma.staffPlanDay.create({
-        data: {
-          dayId,
-          date: new Date(date),
-          eventName,
-          note,
-          status,
-          rows: {
-            create: (rows || []).map((r: any, i: number) => ({
+
+        await tx.staffPlanRow.deleteMany({
+          where: { planId: p.id }
+        })
+
+        if (normalizedRows.length > 0) {
+          await tx.staffPlanRow.createMany({
+            data: normalizedRows.map((r: any, i: number) => ({
+              planId: p.id,
               sortOrder: i,
-              assignmentLabel: r.assignmentLabel,
+              assignmentLabel: r.assignmentLabel || r.area || "Unbekannter Bereich",
               employeeId: r.employeeId || null,
               startTime: r.startTime || null,
               endTime: r.endTime || null,
               note: r.note || null,
             }))
-          }
+          })
         }
-      })
-    }
+      } else {
+        p = await tx.staffPlanDay.create({
+          data: {
+            dayId,
+            date: new Date(date),
+            eventName,
+            note,
+            status,
+            rows: {
+              create: normalizedRows.map((r: any, i: number) => ({
+                sortOrder: i,
+                assignmentLabel: r.assignmentLabel || r.area || "Unbekannter Bereich",
+                employeeId: r.employeeId || null,
+                startTime: r.startTime || null,
+                endTime: r.endTime || null,
+                note: r.note || null,
+              }))
+            }
+          }
+        })
+      }
+      return p
+    })
 
     return NextResponse.json({ success: true, planId: plan.id })
   } catch (error) {
-    console.error("POST /api/planning/admin/shifts", error)
-    return new NextResponse("Internal Error", { status: 500 })
+    console.error("POST /api/planning/admin/shifts - Error saving shifts:", error)
+    return NextResponse.json(
+      { error: "Fehler beim Speichern der Schichten", details: (error as Error).message }, 
+      { status: 500 }
+    )
   }
 }

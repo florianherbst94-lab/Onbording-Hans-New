@@ -30,9 +30,18 @@ interface ContractFormProps {
   personalData: PersonalData | null
   startDate?: Date | null
   hourlyWage: number
+  jobRole?: string | null
 }
 
-function ContractText({ name, addressLine, today, startDate, personalData, hourlyWage }: { name: string, addressLine: string, today: string, startDate: string | null, personalData: PersonalData | null, hourlyWage: number }) {
+function ContractText({ name, addressLine, today, startDate, personalData, hourlyWage, jobRole }: { name: string, addressLine: string, today: string, startDate: string | null, personalData: PersonalData | null, hourlyWage: number, jobRole?: string | null }) {
+  const getJobTitle = () => {
+    switch (jobRole) {
+      case 'ORDNER': return 'Ordner'
+      case 'REINIGUNGSKRAFT': return 'Reinigungskraft'
+      default: return 'Servicekraft / Barkraft'
+    }
+  }
+
   return (
     <div className={styles.contractText} id="contract-content">
       <div className={styles.documentLogo}>
@@ -60,7 +69,7 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
       Die ersten 3 Monate gelten als Probezeit. Während dieser Zeit kann das Arbeitsverhältnis mit einer Frist von 2 Wochen gekündigt werden.</p>
 
       <h3>§3 Tätigkeit und Arbeitsort</h3>
-      <p>Der Arbeitnehmer wird als Servicekraft / Barkraft im Betrieb<br/>
+      <p>Der Arbeitnehmer wird als {getJobTitle()} im Betrieb<br/>
       „Hans im Club“, Wallstraße 11, 01067 Dresden eingesetzt.<br/>
       Der Arbeitgeber ist berechtigt, dem Arbeitnehmer andere gleichwertige und zumutbare Tätigkeiten zuzuweisen.</p>
 
@@ -137,7 +146,7 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
   )
 }
 
-export function ContractForm({ personalData, startDate, hourlyWage }: ContractFormProps) {
+export function ContractForm({ personalData, startDate, hourlyWage, jobRole }: ContractFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
@@ -266,7 +275,7 @@ export function ContractForm({ personalData, startDate, hourlyWage }: ContractFo
 
         <ZoomableDocument id="contract-preview">
           <div style={{ padding: '4rem 3.5rem' }}>
-          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} />
+          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} />
           
           <div className={styles.signatureRow}>
              <div className={styles.sigContainer}>
@@ -295,7 +304,7 @@ export function ContractForm({ personalData, startDate, hourlyWage }: ContractFo
       
       <ZoomableDocument id="contract-preview">
         <div style={{ padding: '4rem 3.5rem' }}>
-          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} />
+          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} />
         </div>
       </ZoomableDocument>
 

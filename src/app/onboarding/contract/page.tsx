@@ -21,7 +21,7 @@ export default async function ContractStep() {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { startDate: true, hourlyWage: true }
+    select: { startDate: true, hourlyWage: true, jobRole: true }
   })
 
   const existingProgress = await prisma.stepProgress.findUnique({

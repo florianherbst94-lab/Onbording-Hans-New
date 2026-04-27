@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+/prisma/dev.db
+/prisma/dev.db-journal
+/repro_audio.js
+/repro_large.js
+/next-error.log

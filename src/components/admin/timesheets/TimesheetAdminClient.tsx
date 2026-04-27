@@ -267,7 +267,6 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
                      <div className={styles.ganttBarArea}>
                        <div 
                          className={styles.ganttBar} 
-                         onClick={() => startEdit(t)}
                          style={{ 
                            left: `${((startH - startScaleH) / totalScaleHours) * 100}%`, 
                            width: `${((endH - startH) / totalScaleHours) * 100}%`,
@@ -276,9 +275,35 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
                          }}
                          title={`${t.startTime} - ${t.endTime} (${t.breakMinutes} Min Pause) - Klicken zum Bearbeiten`}
                        >
-                         <span className={styles.ganttTimeText}>
+                         <span className={styles.ganttTimeText} onClick={() => startEdit(t)} style={{ cursor: 'pointer', flex: 1 }}>
                            {t.startTime}-{t.endTime} {t.breakMinutes > 0 ? `(${t.breakMinutes}m P)` : ''}
                          </span>
+                         {t.status === "SUBMITTED" && (
+                           <span className={styles.ganttBarActions} onClick={e => e.stopPropagation()}>
+                             <button
+                               className={`${styles.ganttBarBtn} ${styles.ganttBarBtnApprove}`}
+                               onClick={() => handleStatusChange(t.id, "APPROVED", t.note)}
+                               disabled={loadingId === t.id}
+                               title="Genehmigen"
+                             >✓</button>
+                             <button
+                               className={`${styles.ganttBarBtn} ${styles.ganttBarBtnReject}`}
+                               onClick={() => handleStatusChange(t.id, "REJECTED", t.note)}
+                               disabled={loadingId === t.id}
+                               title="Ablehnen"
+                             >✗</button>
+                           </span>
+                         )}
+                         {t.status === "APPROVED" && (
+                           <span className={styles.ganttBarActions} onClick={e => e.stopPropagation()}>
+                             <button
+                               className={`${styles.ganttBarBtn} ${styles.ganttBarBtnReject}`}
+                               onClick={() => handleStatusChange(t.id, "REJECTED", t.note)}
+                               disabled={loadingId === t.id}
+                               title="Widerrufen"
+                             >✗</button>
+                           </span>
+                         )}
                        </div>
                      </div>
                    </div>
@@ -484,6 +509,41 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
               <span style={{ marginLeft: '0.5rem', fontWeight: 600 }}>Pause:</span>
               <input type="number" style={{ padding: '0.6rem', width: '80px', border: '1px solid var(--border)', borderRadius: '6px', background: 'var(--background)', color: 'var(--foreground)' }} value={editData.breakMinutes} onChange={e => setEditData({...editData, breakMinutes: parseInt(e.target.value)||0})} />
             </div>
+
+            {(() => {
+              const editEntry = timesheets.find(t => t.id === editId);
+              if (!editEntry) return null;
+              return (
+                <>
+                  {editEntry.status === "SUBMITTED" && (
+                    <div className={styles.modalStatusActions}>
+                      <button
+                        className={styles.btnApprove}
+                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.9rem' }}
+                        onClick={() => { handleStatusChange(editEntry.id, "APPROVED", editEntry.note); cancelEdit(); }}
+                        disabled={loadingId === editId}
+                      >✓ Genehmigen</button>
+                      <button
+                        className={styles.btnReject}
+                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.9rem' }}
+                        onClick={() => { handleStatusChange(editEntry.id, "REJECTED", editEntry.note); cancelEdit(); }}
+                        disabled={loadingId === editId}
+                      >✗ Ablehnen</button>
+                    </div>
+                  )}
+                  {editEntry.status === "APPROVED" && (
+                    <div className={styles.modalStatusActions}>
+                      <button
+                        className={styles.btnReject}
+                        style={{ flex: 1, padding: '0.6rem', fontSize: '0.9rem' }}
+                        onClick={() => { handleStatusChange(editEntry.id, "REJECTED", editEntry.note); cancelEdit(); }}
+                        disabled={loadingId === editId}
+                      >✗ Widerrufen</button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div className={styles.modalActions}>
               <button className={styles.btnReject} onClick={cancelEdit} disabled={loadingId === editId}>Abbrechen</button>

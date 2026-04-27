@@ -36,6 +36,13 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
 
   const handleAddDay = () => {
     if (!newDayDate) return
+    
+    // Check for identical date AND event name (truly identical entry)
+    if (days.some(d => d.date === newDayDate && d.eventName === newDayEvent)) {
+      alert("Dieser genau gleiche Eintrag wurde bereits hinzugefügt.")
+      return
+    }
+
     setDays([...days, { date: newDayDate, eventName: newDayEvent, note: newDayNote }].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()))
     setNewDayDate("")
     setNewDayEvent("")
@@ -53,6 +60,7 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
     }
 
     setIsLoading(true)
+    console.log("[RequestsClient] Sending CREATE request with", days.length, "days")
     try {
       const res = await fetch("/api/planning/requests", {
         method: "POST",
@@ -65,10 +73,13 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
         resetForm()
         onRefresh()
       } else {
-        alert("Fehler beim Speichern")
+        const errorData = await res.json().catch(() => ({}))
+        console.error("[RequestsClient] SAVE ERROR:", res.status, errorData)
+        alert(`Fehler beim Speichern (Status ${res.status}): ${errorData.details || errorData.error || "Unbekannter Fehler"}\n\nZeitstempel: ${new Date().toLocaleTimeString()}`)
       }
     } catch (e) {
-      alert("Ein Fehler ist aufgetreten.")
+      console.error("[RequestsClient] FETCH EXCEPTION:", e)
+      alert("Ein Fehler ist aufgetreten: " + (e as Error).message)
     } finally {
       setIsLoading(false)
     }
@@ -94,6 +105,7 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
     }
 
     setIsLoading(true)
+    console.log("[RequestsClient] Sending UPDATE request for", editingId, "with", days.length, "days")
     try {
       const res = await fetch(`/api/planning/requests/${editingId}`, {
         method: "PUT",
@@ -106,10 +118,13 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
         resetForm()
         onRefresh()
       } else {
-        alert("Fehler beim Speichern")
+        const errorData = await res.json().catch(() => ({}))
+        console.error("[RequestsClient] UPDATE ERROR:", res.status, errorData)
+        alert(`Fehler beim Speichern der Änderungen (Status ${res.status}): ${errorData.details || errorData.error || "Unbekannter Fehler"}\n\nZeitstempel: ${new Date().toLocaleTimeString()}`)
       }
     } catch (e) {
-      alert("Ein Fehler ist aufgetreten.")
+      console.error("[RequestsClient] FETCH EXCEPTION:", e)
+      alert("Ein Fehler ist aufgetreten: " + (e as Error).message)
     } finally {
       setIsLoading(false)
     }
@@ -124,14 +139,20 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
     if (newStatus === "CLOSED" && !confirm("Abfrage wirklich schließen? Mitarbeiter können dann keine Antworten mehr geben.")) return
 
     try {
-      await fetch(`/api/planning/requests/${id}`, {
+      const res = await fetch(`/api/planning/requests/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus })
       })
-      onRefresh()
+      
+      if (res.ok) {
+        onRefresh()
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        alert(`Fehler beim Ändern des Status: ${errorData.details || "Unbekannter Fehler"}`)
+      }
     } catch (e) {
-      alert("Fehler beim Ändern des Status.")
+      alert("Ein Fehler ist aufgetreten beim Status-Update: " + (e as Error).message)
     }
   }
 
@@ -139,10 +160,15 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
     if (!confirm("Abfrage wirklich löschen? Alle Antworten der Mitarbeiter werden unwiderruflich gelöscht!")) return
     
     try {
-      await fetch(`/api/planning/requests/${id}`, { method: "DELETE" })
-      onRefresh()
+      const res = await fetch(`/api/planning/requests/${id}`, { method: "DELETE" })
+      if (res.ok) {
+        onRefresh()
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        alert(`Fehler beim Löschen: ${errorData.details || "Unbekannter Fehler"}`)
+      }
     } catch(e) {
-      alert("Fehler beim Löschen")
+      alert("Ein Fehler ist aufgetreten beim Löschen: " + (e as Error).message)
     }
   }
 
@@ -173,12 +199,18 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
             
             <div className={styles.dayList}>
               {days.length === 0 && <p style={{ fontSize: '0.9rem', color: '#86868b' }}>Noch keine Tage hinzugefügt.</p>}
-              {days.map((d) => (
-                <div key={d.date} className={styles.dayItemLine}>
-                  <span><strong>{formatDate(d.date)}</strong> {d.eventName && `– ${d.eventName}`} {d.note && `(${d.note})`}</span>
-                  <Button variant="ghost" size="sm" onClick={() => handleRemoveDay(d.date)}>X</Button>
-                </div>
-              ))}
+              {days.map((d, index) => {
+                const isExactDuplicate = days.filter(day => day.date === d.date && day.eventName === d.eventName).length > 1
+                return (
+                  <div key={`${d.date}-${index}`} className={`${styles.dayItemLine} ${isExactDuplicate ? styles.duplicateWarning : ''}`}>
+                    <span>
+                      <strong>{formatDate(d.date)}</strong> {d.eventName && `– ${d.eventName}`} {d.note && `(${d.note})`}
+                      {isExactDuplicate && <span style={{ color: '#d93025', marginLeft: '0.5rem', fontSize: '0.8rem', fontWeight: 'bold' }}>[Duplikat]</span>}
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={() => handleRemoveDay(d.date)}>X</Button>
+                  </div>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -193,9 +225,16 @@ export default function RequestsClient({ requests, onRefresh }: { requests: any[
   )
 
   return (
-    <div>
+    <div className={styles.planningWrapper}>
+      {/* HIGH VISIBILITY VERSION BANNER */}
+      <div style={{ backgroundColor: '#ffeb3b', color: '#000', padding: '1rem', textAlign: 'center', fontWeight: 'bold', borderBottom: '2px solid #fbc02d', marginBottom: '1rem', borderRadius: '8px' }}>
+        ⚠️ NEUE VERSION AKTIV (v2.2) - Build: {new Date().toLocaleString('de-DE')}
+      </div>
+      
       <div className={styles.actionHeader}>
-        <h2>Verfügbarkeitsabfragen</h2>
+        <div>
+          <h2>Verfügbarkeitsabfragen</h2>
+        </div>
         {!isCreating && !editingId && <Button onClick={() => { resetForm(); setIsCreating(true) }}>+ Neue Abfrage</Button>}
       </div>
 

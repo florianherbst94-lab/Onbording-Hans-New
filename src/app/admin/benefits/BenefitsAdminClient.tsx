@@ -96,6 +96,10 @@ export default function BenefitsAdminClient({ initialBenefits }: { initialBenefi
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         })
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          throw new Error(errorData.details || "Fehler beim Aktualisieren des Benefits")
+        }
         const updated = await res.json()
         setBenefits(benefits.map(b => (b.id === editingId ? updated : b)).sort((a,b) => a.sortOrder - b.sortOrder))
       } else {
@@ -104,14 +108,18 @@ export default function BenefitsAdminClient({ initialBenefits }: { initialBenefi
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         })
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          throw new Error(errorData.details || "Fehler beim Erstellen des Benefits")
+        }
         const created = await res.json()
         setBenefits([...benefits, created].sort((a,b) => a.sortOrder - b.sortOrder))
       }
       
       resetForm()
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
-      alert("Ein Fehler ist aufgetreten.")
+      alert("Ein Fehler ist aufgetreten: " + (e.message || "Unbekannter Fehler"))
     } finally {
       setIsLoading(false)
     }

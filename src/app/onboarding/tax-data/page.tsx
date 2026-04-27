@@ -39,7 +39,12 @@ export default async function TaxDataStep() {
     const session = await auth()
     if (!session?.user) throw new Error("Unauthorized")
 
-    const data = Object.fromEntries(formData.entries())
+    const data = Object.fromEntries(formData.entries()) as Record<string, string>
+    
+    // Server-side validation for mandatory fields
+    if (!data.svNumber || data.svNumber.trim() === "") {
+        throw new Error("Die Sozialversicherungsnummer ist ein Pflichtfeld.")
+    }
 
     await prisma.stepProgress.upsert({
       where: { userId_stepId: { userId: session.user.id!, stepId: "tax-data" } },

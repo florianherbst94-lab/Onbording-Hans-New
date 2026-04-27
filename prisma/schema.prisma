@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -41,6 +41,7 @@ model User {
   image            String?
   password         String?
   role             String            @default("EMPLOYEE")
+  jobRole          String?           // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"
   isArchived       Boolean           @default(false)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -160,7 +161,6 @@ model AvailabilityDay {
   responses   AvailabilityResponse[]
   staffPlan   StaffPlanDay?
 
-  @@unique([requestId, date])
 }
 
 model AvailabilityResponse {

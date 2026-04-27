@@ -7,6 +7,6 @@ const ContractForm = dynamic(() => import("./ContractForm").then(mod => mod.Cont
   loading: () => <p>Vertrag wird geladen...</p>
 })
 
-export default function ContractFormClient({ personalData, startDate, hourlyWage }: { personalData: { firstName: string, lastName: string, address: string, zipCode: string, city: string, iban?: string } | null, startDate?: Date | null, hourlyWage: number }) {
-  return <ContractForm personalData={personalData} startDate={startDate} hourlyWage={hourlyWage} />
+export default function ContractFormClient({ personalData, startDate, hourlyWage, jobRole }: { personalData: { firstName: string, lastName: string, address: string, zipCode: string, city: string, iban?: string } | null, startDate?: Date | null, hourlyWage: number, jobRole?: string | null }) {
+  return <ContractForm personalData={personalData} startDate={startDate} hourlyWage={hourlyWage} jobRole={jobRole} />
 }

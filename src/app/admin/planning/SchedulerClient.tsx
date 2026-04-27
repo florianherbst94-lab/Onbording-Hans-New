@@ -179,10 +179,19 @@ export default function SchedulerClient({ requests }: { requests: any[] }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dayId: selectedDayId, date: activeDay?.date, eventName: activeDay?.eventName, status, assignments })
       })
-      if (res.ok) { setPlanStatus(status); alert("Einsatzplan gespeichert!") }
-      else { alert("Fehler beim Speichern") }
-    } catch (e) { alert("Fehler aufgetreten") }
-    finally { setIsSaving(false) }
+      
+      if (res.ok) {
+        setPlanStatus(status)
+        alert("Einsatzplan gespeichert!")
+      } else {
+        const errorData = await res.json().catch(() => ({}))
+        alert(`Fehler beim Speichern des Plans: ${errorData.details || "Unbekannter Fehler"}`)
+      }
+    } catch (e) {
+      alert("Ein Fehler ist aufgetreten: " + (e as Error).message)
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleExportCSV = () => {

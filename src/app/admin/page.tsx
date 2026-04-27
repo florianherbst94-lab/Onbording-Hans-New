@@ -30,6 +30,7 @@ export default async function AdminDashboard() {
     const name = formData.get("name") as string
     const startDateRaw = formData.get("startDate") as string
     const hourlyWage = parseFloat(formData.get("hourlyWage") as string) || 13.90
+    const jobRole = formData.get("jobRole") as string || "SERVICE"
     
     if (!email || !name) return
 
@@ -47,6 +48,7 @@ export default async function AdminDashboard() {
           email,
           name,
           role: 'EMPLOYEE',
+          jobRole,
           startDate,
           hourlyWage,
           password: hashedPassword,
@@ -61,6 +63,7 @@ export default async function AdminDashboard() {
         data: { 
           startDate: startDate || user.startDate,
           hourlyWage: hourlyWage || user.hourlyWage,
+          jobRole: jobRole || user.jobRole,
           password: hashedPassword
         }
       })
@@ -135,6 +138,14 @@ export default async function AdminDashboard() {
             <form action={inviteEmployee} className={styles.form}>
               <Input label="Name" name="name" placeholder="Max Mustermann" required />
               <Input label="E-Mail" name="email" type="email" placeholder="max@beispiel.de" required />
+              <div className={styles.formGroup}>
+                <label className={styles.label}>Bereich / Tätigkeit</label>
+                <select name="jobRole" className={styles.select} defaultValue="SERVICE">
+                  <option value="SERVICE">Service / Bar</option>
+                  <option value="ORDNER">Ordner</option>
+                  <option value="REINIGUNGSKRAFT">Reinigungskraft</option>
+                </select>
+              </div>
               <Input label="Arbeitsbeginn" name="startDate" type="date" required />
               <Input label="Stundenlohn (€)" name="hourlyWage" type="number" step="0.01" defaultValue="13.90" required />
               <Button type="submit">Einladung senden</Button>
@@ -152,6 +163,7 @@ export default async function AdminDashboard() {
                 <thead>
                   <tr>
                     <th>Name</th>
+                    <th>Bereich</th>
                     <th>E-Mail</th>
                     <th>Status</th>
                     <th>Steuerkanzlei</th>
@@ -163,6 +175,7 @@ export default async function AdminDashboard() {
                   {employees.map((emp) => (
                     <tr key={emp.id}>
                       <td>{emp.name || '-'}</td>
+                      <td>{emp.jobRole || 'SERVICE'}</td>
                       <td>{emp.email}</td>
                       <td>
                         <span className={`${styles.badge} ${styles['status-' + (emp.onboardingStatus?.status || 'INVITED')]}`}>
