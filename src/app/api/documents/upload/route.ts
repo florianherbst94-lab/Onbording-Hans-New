@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
     // Upload to Vercel Blob
     const blob = await put(`documents/${session.user.id}/${Date.now()}-${file.name}`, file, {
       access: "public",
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
 
     // Save metadata to DB
