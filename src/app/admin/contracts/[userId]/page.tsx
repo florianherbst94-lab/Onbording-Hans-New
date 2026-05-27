@@ -5,6 +5,7 @@ import { PrintButtonClient as PrintButton } from "@/components/ui/PrintButtonCli
 import { TaxFormPreview } from "@/components/TaxFormPreview"
 import { RVBefreiungPreview } from "@/components/RVBefreiungPreview"
 import { FireSafetyPreview } from "@/components/FireSafetyPreview"
+import { Button } from "@/components/ui/Button"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
 import styles from "./page.module.css"
@@ -34,10 +35,11 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
   const contractStep = steps.find(s => s.stepId === 'contract' && s.completed)
   const videoStep = steps.find(s => s.stepId === 'video' && s.completed)
 
-  const document = await prisma.document.findFirst({
-    where: { userId, type: "CONTRACT_SIGNED" },
-    orderBy: { uploadedAt: "desc" }
+  const documents = await prisma.document.findMany({
+    where: { userId }
   })
+
+  const document = documents.find(d => d.type === "CONTRACT_SIGNED")
 
 
 
@@ -340,6 +342,38 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
           </div>
         </>
       )}
+
+      {/* Hygiene Certificate Section */}
+      {documents.some(d => d.type === 'HYGIENE_CERTIFICATE') && (
+        <div className={styles.auditLog} style={{ marginTop: '2rem' }}>
+          <h2>Hygiene-Schulung (Zertifikat)</h2>
+          <div className={styles.tableWrapper}>
+            <table className={styles.auditTable}>
+              <thead>
+                <tr>
+                  <th>Dokument</th>
+                  <th>Hochgeladen am</th>
+                  <th>Aktion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {documents.filter(d => d.type === 'HYGIENE_CERTIFICATE').map(cert => (
+                  <tr key={cert.id}>
+                    <td>Infektionsschutzbelehrung (Hygiene-Zertifikat)</td>
+                    <td>{new Date(cert.uploadedAt).toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
+                    <td>
+                      <a href={cert.url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">Ansehen / Download</Button>
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
 
     </div>
   )
