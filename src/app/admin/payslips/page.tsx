@@ -134,41 +134,43 @@ export default async function AdminPayslips() {
             <CardTitle>Letzte Uploads</CardTitle>
           </CardHeader>
           <CardContent>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Mitarbeiter</th>
-                  <th>Zeitraum</th>
-                  <th>Bereitgestellt am</th>
-                  <th>Aktion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payslips.map(slip => (
-                  <tr key={slip.id}>
-                    <td>{slip.user.name || slip.user.email}</td>
-                    <td>{months.find(m => m.value === slip.month)?.label} {slip.year}</td>
-                    <td>{new Date(slip.uploadedAt).toLocaleDateString("de-DE")}</td>
-                    <td>
-                      <div className={styles.actions}>
-                        <a href={slip.url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="ghost" size="sm">Anschauen</Button>
-                        </a>
-                        <DeleteButton 
-                          action={deletePayslip.bind(null, slip.id)} 
-                          confirmMessage="Lohnzettel wirklich löschen?" 
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {payslips.length === 0 && (
+            <div className={styles.tableWrapper}>
+              <table className={styles.table}>
+                <thead>
                   <tr>
-                    <td colSpan={4} className={styles.empty}>Noch keine Lohnzettel hochgeladen.</td>
+                    <th>Mitarbeiter</th>
+                    <th>Zeitraum</th>
+                    <th>Bereitgestellt am</th>
+                    <th>Aktion</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payslips.map(slip => (
+                    <tr key={slip.id}>
+                      <td>{slip.user.name || slip.user.email}</td>
+                      <td>{months.find(m => m.value === slip.month)?.label} {slip.year}</td>
+                      <td>{new Date(slip.uploadedAt).toLocaleDateString("de-DE")}</td>
+                      <td>
+                        <div className={styles.actions}>
+                          <a href={slip.url} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="sm">Anschauen</Button>
+                          </a>
+                          <DeleteButton 
+                            action={deletePayslip.bind(null, slip.id)} 
+                            confirmMessage="Lohnzettel wirklich löschen?" 
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {payslips.length === 0 && (
+                    <tr>
+                      <td colSpan={4} className={styles.empty}>Noch keine Lohnzettel hochgeladen.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </CardContent>
         </Card>
       </div>
