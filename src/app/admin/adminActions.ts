@@ -2,6 +2,9 @@
 
 import { Resend } from "resend"
 import { prisma } from "@/lib/prisma"
+import { del } from "@vercel/blob"
+import { revalidatePath } from "next/cache"
+import { auth } from "@/auth"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -82,4 +85,34 @@ export async function updateEmployeeWage(userId: string, wage: number) {
     console.error("[updateEmployeeWage] Error:", error)
     return { success: false, error: error.message || "Fehler beim Aktualisieren des Lohns" }
   }
+}
+
+export async function deleteDocument(id: string) {
+  const session = await auth()
+  if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
+    throw new Error("Nicht autorisiert")
+  }
+
+  const doc = await prisma.document.findUnique({
+    where: { id }
+  })
+
+  if (!doc) {
+    throw new Error("Dokument nicht gefunden")
+  }
+
+  // Delete from Vercel Blob if it's a blob URL
+  if (doc.url.includes("vercel-storage.com")) {
+    await del(doc.url)
+  }
+
+  // Delete from DB
+  await prisma.document.delete({
+    where: { id }
+  })
+
+  if (doc.userId) {
+    revalidatePath(`/admin/contracts/${doc.userId}`)
+  }
+  revalidatePath("/admin")
 }

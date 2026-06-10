@@ -8,6 +8,7 @@ import { FireSafetyPreview } from "@/components/FireSafetyPreview"
 import { Button } from "@/components/ui/Button"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
+import { deleteDocument } from "../../adminActions"
 import styles from "./page.module.css"
 
 const getEndDate = (start?: Date | null | string) => {
@@ -362,9 +363,14 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                     <td>Infektionsschutzbelehrung (Hygiene-Zertifikat)</td>
                     <td>{new Date(cert.uploadedAt).toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td>
-                      <a href={cert.url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">Ansehen / Download</Button>
-                      </a>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <a href={cert.url} target="_blank" rel="noopener noreferrer">
+                          <Button variant="outline" size="sm">Ansehen / Download</Button>
+                        </a>
+                        <form action={deleteDocument.bind(null, cert.id)} onSubmit={(e) => { if(!confirm("Dokument wirklich löschen?")) e.preventDefault(); }}>
+                          <Button variant="ghost" size="sm" type="submit" style={{ color: '#d93025' }}>Löschen</Button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))}

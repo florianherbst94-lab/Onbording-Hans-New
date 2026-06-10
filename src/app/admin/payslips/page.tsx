@@ -153,7 +153,7 @@ export default async function AdminPayslips() {
                         <a href={slip.url} target="_blank" rel="noopener noreferrer">
                           <Button variant="ghost" size="sm">Anschauen</Button>
                         </a>
-                        <form action={deletePayslip.bind(null, slip.id)}>
+                        <form action={deletePayslip.bind(null, slip.id)} onSubmit={(e) => { if(!confirm("Lohnzettel wirklich löschen?")) e.preventDefault(); }}>
                           <Button variant="ghost" size="sm" type="submit" className={styles.deleteBtn}>Löschen</Button>
                         </form>
                       </div>

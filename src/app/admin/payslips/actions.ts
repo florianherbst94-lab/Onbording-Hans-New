@@ -3,8 +3,9 @@
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { revalidatePath } from "next/cache"
-import { writeFile, mkdir } from "fs/promises"
+import { writeFile, mkdir, unlink } from "fs/promises"
 import path from "path"
+import { del } from "@vercel/blob"
 
 export async function uploadPayslip(formData: FormData) {
   const session = await auth()
@@ -57,6 +58,27 @@ export async function deletePayslip(id: string) {
   const session = await auth()
   if (!session?.user || (session.user as { role?: string }).role !== "ADMIN") {
     throw new Error("Unauthorized")
+  }
+
+  const slip = await prisma.payslip.findUnique({ where: { id } })
+  if (!slip) return
+
+  // Delete physical file
+  if (slip.url.startsWith("/uploads/")) {
+    // Local file
+    const filepath = path.join(process.cwd(), "public", slip.url)
+    try {
+      await unlink(filepath)
+    } catch (e) {
+      console.error("Failed to delete local payslip file", e)
+    }
+  } else if (slip.url.includes("vercel-storage.com")) {
+    // Vercel Blob
+    try {
+      await del(slip.url)
+    } catch (e) {
+      console.error("Failed to delete blob payslip file", e)
+    }
   }
 
   await prisma.payslip.delete({ where: { id } })
