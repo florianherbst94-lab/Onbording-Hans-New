@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
 import { deleteDocument } from "../../adminActions"
+import DeleteButton from "@/components/admin/DeleteButton"
 import styles from "./page.module.css"
 
 const getEndDate = (start?: Date | null | string) => {
@@ -367,9 +368,10 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                         <a href={cert.url} target="_blank" rel="noopener noreferrer">
                           <Button variant="outline" size="sm">Ansehen / Download</Button>
                         </a>
-                        <form action={deleteDocument.bind(null, cert.id)} onSubmit={(e) => { if(!confirm("Dokument wirklich löschen?")) e.preventDefault(); }}>
-                          <Button variant="ghost" size="sm" type="submit" style={{ color: '#d93025' }}>Löschen</Button>
-                        </form>
+                        <DeleteButton 
+                          action={deleteDocument.bind(null, cert.id)} 
+                          confirmMessage="Dokument wirklich löschen?" 
+                        />
                       </div>
                     </td>
                   </tr>

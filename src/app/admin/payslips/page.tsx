@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import { uploadPayslip, deletePayslip } from "./actions"
 import BulkPayslipUpload from "@/components/admin/BulkPayslipUpload"
+import DeleteButton from "@/components/admin/DeleteButton"
 import styles from "./page.module.css"
 
 export default async function AdminPayslips() {
@@ -153,9 +154,10 @@ export default async function AdminPayslips() {
                         <a href={slip.url} target="_blank" rel="noopener noreferrer">
                           <Button variant="ghost" size="sm">Anschauen</Button>
                         </a>
-                        <form action={deletePayslip.bind(null, slip.id)} onSubmit={(e) => { if(!confirm("Lohnzettel wirklich löschen?")) e.preventDefault(); }}>
-                          <Button variant="ghost" size="sm" type="submit" className={styles.deleteBtn}>Löschen</Button>
-                        </form>
+                        <DeleteButton 
+                          action={deletePayslip.bind(null, slip.id)} 
+                          confirmMessage="Lohnzettel wirklich löschen?" 
+                        />
                       </div>
                     </td>
                   </tr>
