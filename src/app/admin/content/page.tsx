@@ -6,13 +6,31 @@ import { revalidatePath } from "next/cache"
 import { put, del } from "@vercel/blob"
 import styles from "./page.module.css"
 
+function getLastName(user: any) {
+  const progress = user.stepProgresses?.find((p: any) => p.stepId === 'personal-data')
+  if (progress?.data) {
+    try {
+      const pd = JSON.parse(progress.data)
+      if (pd.lastName) return pd.lastName.trim()
+    } catch (e) {}
+  }
+  if (user.name) {
+    const parts = user.name.trim().split(/\s+/)
+    if (parts.length > 1) {
+      return parts.slice(1).join(" ")
+    }
+    return parts[0] || ""
+  }
+  return ""
+}
+
 export default async function ContentDashboard() {
   const globalDocuments = await prisma.document.findMany({
     orderBy: { uploadedAt: 'desc' },
     where: { userId: null } // Only admin templates
   })
 
-  const employees = await prisma.user.findMany({
+  const rawEmployees = await prisma.user.findMany({
     where: { role: 'EMPLOYEE', isArchived: false },
     include: {
       documents: {
@@ -23,9 +41,17 @@ export default async function ContentDashboard() {
           { year: 'desc' },
           { month: 'desc' }
         ]
+      },
+      stepProgresses: {
+        where: { stepId: 'personal-data' }
       }
-    },
-    orderBy: { name: 'asc' }
+    }
+  })
+
+  const employees = [...rawEmployees].sort((a, b) => {
+    const lastA = getLastName(a)
+    const lastB = getLastName(b)
+    return lastA.localeCompare(lastB, 'de-DE')
   })
 
   async function uploadContent(formData: FormData) {

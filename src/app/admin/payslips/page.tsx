@@ -7,6 +7,24 @@ import BulkPayslipUpload from "@/components/admin/BulkPayslipUpload"
 import DeleteButton from "@/components/admin/DeleteButton"
 import styles from "./page.module.css"
 
+function getLastName(user: any) {
+  const progress = user.stepProgresses?.find((p: any) => p.stepId === 'personal-data')
+  if (progress?.data) {
+    try {
+      const pd = JSON.parse(progress.data)
+      if (pd.lastName) return pd.lastName.trim()
+    } catch (e) {}
+  }
+  if (user.name) {
+    const parts = user.name.trim().split(/\s+/)
+    if (parts.length > 1) {
+      return parts.slice(1).join(" ")
+    }
+    return parts[0] || ""
+  }
+  return ""
+}
+
 export default async function AdminPayslips() {
   const rawEmployees = await prisma.user.findMany({
     where: { role: 'EMPLOYEE' },
@@ -51,13 +69,28 @@ export default async function AdminPayslips() {
     }
   })
 
-  const payslips = await prisma.payslip.findMany({
-    include: { user: true },
-    orderBy: [
-      { year: 'desc' },
-      { month: 'desc' },
-      { user: { name: 'asc' } }
-    ]
+  // Sort employees alphabetically by last name (Nachname)
+  employees.sort((a, b) => a.lastName.localeCompare(b.lastName, 'de-DE'))
+
+  const rawPayslips = await prisma.payslip.findMany({
+    include: { 
+      user: {
+        include: {
+          stepProgresses: {
+            where: { stepId: 'personal-data' }
+          }
+        }
+      } 
+    }
+  })
+
+  // Sort payslips: year desc, month desc, then user last name asc
+  const payslips = [...rawPayslips].sort((a, b) => {
+    if (b.year !== a.year) return b.year - a.year
+    if (b.month !== a.month) return b.month - a.month
+    const lastA = getLastName(a.user)
+    const lastB = getLastName(b.user)
+    return lastA.localeCompare(lastB, 'de-DE')
   })
 
   const currentYear = new Date().getFullYear()

@@ -15,7 +15,8 @@ import {
   LuMenu,
   LuX,
   LuLogOut,
-  LuLayoutDashboard
+  LuLayoutDashboard,
+  LuUserPlus
 } from "react-icons/lu"
 import { clsx } from "clsx"
 import styles from "./layout.module.css"
@@ -33,6 +34,7 @@ export default function AdminSidebar({ children }: { children: React.ReactNode }
     { id: "timesheets", label: "Zeiterfassung", icon: <LuClock />, path: "/admin/timesheets" },
     { id: "benefits", label: "Member Benefits", icon: <LuStar />, path: "/admin/benefits" },
     { id: "planning", label: "Personalplanung", icon: <LuCalendar />, path: "/admin/planning" },
+    { id: "create-employee", label: "Mitarbeiter anlegen", icon: <LuUserPlus />, path: "/admin/create-employee" },
   ]
 
   const isActive = (path: string) => {

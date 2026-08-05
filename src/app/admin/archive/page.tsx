@@ -4,13 +4,39 @@ import { Button } from "@/components/ui/Button"
 import { revalidatePath } from "next/cache"
 import styles from "../page.module.css"
 
+function getLastName(user: any) {
+  const progress = user.stepProgresses?.find((p: any) => p.stepId === 'personal-data')
+  if (progress?.data) {
+    try {
+      const pd = JSON.parse(progress.data)
+      if (pd.lastName) return pd.lastName.trim()
+    } catch (e) {}
+  }
+  if (user.name) {
+    const parts = user.name.trim().split(/\s+/)
+    if (parts.length > 1) {
+      return parts.slice(1).join(" ")
+    }
+    return parts[0] || ""
+  }
+  return ""
+}
+
 export default async function ArchiveDashboard() {
-  const archivedEmployees = await prisma.user.findMany({
+  const rawArchivedEmployees = await prisma.user.findMany({
     where: { role: 'EMPLOYEE', isArchived: true },
     include: { 
-      onboardingStatus: true
-    },
-    orderBy: { createdAt: 'desc' }
+      onboardingStatus: true,
+      stepProgresses: {
+        where: { stepId: 'personal-data' }
+      }
+    }
+  })
+
+  const employees = [...rawArchivedEmployees].sort((a, b) => {
+    const lastA = getLastName(a)
+    const lastB = getLastName(b)
+    return lastA.localeCompare(lastB, 'de-DE')
   })
 
   async function restoreEmployee(userId: string) {
@@ -67,7 +93,7 @@ export default async function ArchiveDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {archivedEmployees.map((emp) => (
+                  {employees.map((emp) => (
                     <tr key={emp.id}>
                       <td>{emp.name || '-'}</td>
                       <td>{emp.email}</td>
@@ -89,9 +115,9 @@ export default async function ArchiveDashboard() {
                       </td>
                     </tr>
                   ))}
-                  {archivedEmployees.length === 0 && (
+                  {employees.length === 0 && (
                     <tr>
-                       <td colSpan={5} className={styles.empty}>Keine Mitarbeiter archiviert.</td>
+                      <td colSpan={5} className={styles.empty}>Keine Mitarbeiter archiviert.</td>
                     </tr>
                   )}
                 </tbody>
@@ -103,3 +129,4 @@ export default async function ArchiveDashboard() {
     </div>
   )
 }
+

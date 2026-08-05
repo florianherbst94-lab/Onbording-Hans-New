@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma"
 import { del } from "@vercel/blob"
 import { revalidatePath } from "next/cache"
 import { auth } from "@/auth"
+import crypto from "crypto"
+import { redirect } from "next/navigation"
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
@@ -115,4 +117,76 @@ export async function deleteDocument(id: string) {
     revalidatePath(`/admin/contracts/${doc.userId}`)
   }
   revalidatePath("/admin")
+}
+
+export async function inviteEmployee(formData: FormData) {
+  const email = formData.get("email") as string
+  const name = formData.get("name") as string
+  const startDateRaw = formData.get("startDate") as string
+  const hourlyWage = parseFloat(formData.get("hourlyWage") as string) || 13.90
+  const jobRole = formData.get("jobRole") as string || "SERVICE"
+  
+  if (!email || !name) return
+
+  const startDate = startDateRaw ? new Date(startDateRaw) : null
+
+  let user = await prisma.user.findUnique({ where: { email } })
+  
+  // Generate a random 8-character password
+  const rawPassword = crypto.randomBytes(4).toString("hex") // 8 characters
+  const hashedPassword = crypto.createHash("sha256").update(rawPassword).digest("hex")
+
+  if (!user) {
+    user = await (prisma.user.create as any)({
+      data: {
+        email,
+        name,
+        role: 'EMPLOYEE',
+        jobRole,
+        startDate,
+        hourlyWage,
+        password: hashedPassword,
+        onboardingStatus: {
+          create: { status: 'INVITED' }
+        }
+      }
+    })
+  } else {
+    await (prisma.user.update as any)({
+      where: { id: user.id },
+      data: { 
+        startDate: startDate || user.startDate,
+        hourlyWage: hourlyWage || user.hourlyWage,
+        jobRole: jobRole || user.jobRole,
+        password: hashedPassword
+      }
+    })
+  }
+
+  const loginUrl = "https://team.hansimclub.de"
+
+  console.log(`\n\n[Employee Invited]:\nTo: ${email}\nPassword: ${rawPassword}\n\n`)
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await resend.emails.send({
+        from: "onboarding@hansimclub.de",
+        to: email,
+        subject: "Willkommen im Team! Deine Einladung zum Hans im Club Onboarding",
+        html: `
+          <p>Hi ${name || ''},</p>
+          <p>du bist willkommen im Hans im Club Team, schön dass du dabei bist.</p>
+          <p>Bitte nutze diesen folgenden Link, um dich bei uns als Mitarbeiter zu registrieren:</p>
+          <p><strong>E-Mail:</strong> ${email}<br/><strong>Passwort:</strong> ${rawPassword}</p>
+          <p><a href="${loginUrl}/login">Hier geht's zur Registrierung / zum Login</a></p>
+          <p>Viel Erfolg! Wenn du Fragen hast, melde dich bitte bei der Betriebsleiterin.</p>
+        `,
+      })
+    } catch (e: unknown) {
+      console.error("[Resend API Error]:", (e as Error).message)
+    }
+  }
+
+  revalidatePath("/admin")
+  redirect("/admin")
 }
