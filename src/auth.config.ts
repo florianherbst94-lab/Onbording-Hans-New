@@ -12,7 +12,8 @@ export const authConfig = {
       const isPublicRoute = 
         nextUrl.pathname === '/' || 
         nextUrl.pathname === '/login' || 
-        nextUrl.pathname === '/reset-password';
+        nextUrl.pathname === '/reset-password' ||
+        nextUrl.pathname.startsWith('/twenty-two');
       
       if (isAuthRoute) return true;
 
