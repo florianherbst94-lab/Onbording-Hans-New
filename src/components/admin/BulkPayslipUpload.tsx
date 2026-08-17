@@ -34,10 +34,18 @@ interface SkippedResult {
   reason: string
 }
 
+interface AlreadyPresentResult {
+  page: number
+  employeeName: string
+  employeeId: string
+  reason: string
+}
+
 interface BulkResult {
   assigned: AssignedResult[]
   unassigned: UnassignedResult[]
   skipped: SkippedResult[]
+  alreadyPresent: AlreadyPresentResult[]
   totalPages: number
   monthLabel: string
   yearLabel: string
@@ -45,8 +53,25 @@ interface BulkResult {
   yearNum: number
 }
 
+interface ExistingPayslip {
+  id: string
+  userId: string
+  month: number
+  year: number
+}
+
 interface Props {
   employees: Employee[]
+  existingPayslips?: ExistingPayslip[]
+  onPayslipAdded?: (newPayslip: {
+    id: string
+    userId: string
+    month: number
+    year: number
+    url: string
+    uploadedAt: string
+  }) => void
+  onPayslipDeleted?: (id: string) => void
 }
 
 function normalizeText(str: string): string {
@@ -62,7 +87,12 @@ function normalizeText(str: string): string {
     .trim()
 }
 
-export default function BulkPayslipUpload({ employees }: Props) {
+export default function BulkPayslipUpload({ 
+  employees, 
+  existingPayslips = [],
+  onPayslipAdded,
+  onPayslipDeleted 
+}: Props) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [statusText, setStatusText] = useState("")
   const [result, setResult] = useState<BulkResult | null>(null)
@@ -374,7 +404,15 @@ export default function BulkPayslipUpload({ employees }: Props) {
       const assigned: AssignedResult[] = []
       const unassigned: UnassignedResult[] = []
       const skipped: SkippedResult[] = []
+      const alreadyPresent: AlreadyPresentResult[] = []
       const initialSelected: Record<number, string> = {}
+
+      // Set of user IDs who currently ALREADY have a payslip for this month/year
+      const existingUserIds = new Set(
+        existingPayslips
+          .filter((p) => p.month === monthNum && p.year === yearNum)
+          .map((p) => p.userId)
+      )
 
       for (let i = 0; i < pageTexts.length; i++) {
         const pageNum = i + 1
@@ -389,22 +427,45 @@ export default function BulkPayslipUpload({ employees }: Props) {
         const { employee: emp, candidateName, candidateId } = findEmployeeMatch(pageText)
 
         if (emp) {
-          setStatusText(`Speichere Seite ${pageNum} (${emp.name})…`)
-          const pageBytes = pages.get(pageNum)
-          let uploadedUrl = ""
-          let pId = ""
-          if (pageBytes) {
-            const uploadRes = await uploadPage(pageBytes, emp.id, monthNum, yearNum)
-            uploadedUrl = uploadRes.url || ""
-            pId = uploadRes.payslipId || ""
+          // Check if employee ALREADY has a payslip for this month & year
+          if (existingUserIds.has(emp.id)) {
+            alreadyPresent.push({
+              page: pageNum,
+              employeeName: emp.name || emp.email || "Unbekannt",
+              employeeId: emp.id,
+              reason: `Hat für ${months.find(m => m.value === monthNum)?.label} ${yearNum} bereits einen Lohnzettel (übersprungen, kein Duplikat)`
+            })
+          } else {
+            // New payslip assignment
+            setStatusText(`Speichere Seite ${pageNum} (${emp.name})…`)
+            const pageBytes = pages.get(pageNum)
+            let uploadedUrl = ""
+            let pId = ""
+            if (pageBytes) {
+              const uploadRes = await uploadPage(pageBytes, emp.id, monthNum, yearNum)
+              uploadedUrl = uploadRes.url || ""
+              pId = uploadRes.payslipId || ""
+
+              if (pId) {
+                existingUserIds.add(emp.id)
+                onPayslipAdded?.({
+                  id: pId,
+                  userId: emp.id,
+                  month: monthNum,
+                  year: yearNum,
+                  url: uploadedUrl,
+                  uploadedAt: new Date().toISOString()
+                })
+              }
+            }
+            assigned.push({
+              payslipId: pId,
+              employeeName: emp.name || emp.email || "Unbekannt",
+              employeeId: emp.id,
+              page: pageNum,
+              url: uploadedUrl
+            })
           }
-          assigned.push({
-            payslipId: pId,
-            employeeName: emp.name || emp.email || "Unbekannt",
-            employeeId: emp.id,
-            page: pageNum,
-            url: uploadedUrl
-          })
         } else {
           unassigned.push({
             page: pageNum,
@@ -422,6 +483,7 @@ export default function BulkPayslipUpload({ employees }: Props) {
         assigned, 
         unassigned, 
         skipped,
+        alreadyPresent,
         totalPages: pageTexts.length,
         monthLabel: months.find(m => m.value === monthNum)?.label || "",
         yearLabel: String(yearNum),
@@ -429,8 +491,10 @@ export default function BulkPayslipUpload({ employees }: Props) {
         yearNum
       })
 
-      if (unassigned.length === 0 && assigned.length > 0) {
-        setSuccessBanner(`Alle ${assigned.length} Lohnzettel wurden erfolgreich und automatisch zugeordnet!`)
+      if (assigned.length > 0 && unassigned.length === 0) {
+        setSuccessBanner(`Alle ${assigned.length} neuen Lohnzettel wurden erfolgreich zugeordnet!`)
+      } else if (assigned.length === 0 && alreadyPresent.length > 0 && unassigned.length === 0) {
+        setSuccessBanner(`Alle ${alreadyPresent.length} erkannten Lohnzettel waren für ${months.find(m => m.value === monthNum)?.label} ${yearNum} bereits vorhanden und wurden übersprungen.`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unbekannter Fehler")
@@ -455,12 +519,34 @@ export default function BulkPayslipUpload({ employees }: Props) {
       return
     }
 
+    // Check if employee already has a payslip for this month
+    const empAlreadyHas = existingPayslips.some(
+      (p) => p.userId === userId && p.month === result.monthNum && p.year === result.yearNum
+    )
+    if (empAlreadyHas) {
+      const confirmOverwrite = window.confirm(
+        "Dieser Mitarbeiter hat für diesen Monat bereits einen Lohnzettel im Postfach. Möchtest du den vorhandenen Lohnzettel wirklich überschreiben?"
+      )
+      if (!confirmOverwrite) return
+    }
+
     setAssigningPage(page)
     setError(null)
     setSuccessBanner(null)
 
     try {
       const uploadRes = await uploadPage(pageBytes, userId, result.monthNum, result.yearNum)
+
+      if (uploadRes.payslipId) {
+        onPayslipAdded?.({
+          id: uploadRes.payslipId,
+          userId,
+          month: result.monthNum,
+          year: result.yearNum,
+          url: uploadRes.url || "",
+          uploadedAt: new Date().toISOString()
+        })
+      }
 
       setResult((prev) => {
         if (!prev) return prev
@@ -514,6 +600,10 @@ export default function BulkPayslipUpload({ employees }: Props) {
         throw new Error(data.error || "Fehler beim Löschen der Zuordnung")
       }
 
+      if (item.payslipId) {
+        onPayslipDeleted?.(item.payslipId)
+      }
+
       setResult(prev => {
         if (!prev) return prev
         return {
@@ -541,7 +631,7 @@ export default function BulkPayslipUpload({ employees }: Props) {
         <div>
           <h3 className={styles.title}>Sammel-PDF verarbeiten (DATEV & Mehrfach-Abrechnungen)</h3>
           <p className={styles.subtitle}>
-            Lade eine PDF mit allen Lohnzetteln hoch — die Zuordnung erfolgt automatisch anhand von Vor- und Nachnamen.
+            Lade eine PDF mit allen Lohnzetteln hoch — Duplikate werden automatisch vermieden (bereits versorgte Mitarbeiter werden übersprungen).
           </p>
         </div>
       </div>
@@ -612,8 +702,13 @@ export default function BulkPayslipUpload({ employees }: Props) {
               📊 {result.totalPages} Seiten analysiert
             </span>
             <span className={styles.summaryItem + " " + styles.successText}>
-              ✅ {result.assigned.length} zugeordnet ({result.monthLabel} {result.yearLabel})
+              ✅ {result.assigned.length} neu zugeordnet
             </span>
+            {result.alreadyPresent.length > 0 && (
+              <span className={styles.summaryItem + " " + styles.infoText}>
+                ℹ️ {result.alreadyPresent.length} bereits vorhanden (übersprungen)
+              </span>
+            )}
             {result.unassigned.length > 0 && (
               <span className={styles.summaryItem + " " + styles.warningText}>
                 ⚠️ {result.unassigned.length} manuell zuordenbar
@@ -689,11 +784,17 @@ export default function BulkPayslipUpload({ employees }: Props) {
                               disabled={assigningPage === item.page}
                             >
                               <option value="">-- Mitarbeiter auswählen --</option>
-                              {employees.map((emp) => (
-                                <option key={emp.id} value={emp.id}>
-                                  {emp.lastName ? `${emp.lastName}, ${emp.firstName || ''}` : (emp.name || emp.email)}
-                                </option>
-                              ))}
+                              {employees.map((emp) => {
+                                const hasSlip = existingPayslips.some(
+                                  (p) => p.userId === emp.id && p.month === result.monthNum && p.year === result.yearNum
+                                )
+                                return (
+                                  <option key={emp.id} value={emp.id}>
+                                    {emp.lastName ? `${emp.lastName}, ${emp.firstName || ''}` : (emp.name || emp.email)}
+                                    {hasSlip ? " (Bereits vorhanden ✓)" : ""}
+                                  </option>
+                                )
+                              })}
                             </select>
 
                             <Button
@@ -724,7 +825,7 @@ export default function BulkPayslipUpload({ employees }: Props) {
           {result.assigned.length > 0 && (
             <div className={styles.resultSection}>
               <h4 className={styles.sectionTitle}>
-                ✅ Erfolgreich zugewiesen ({result.assigned.length})
+                ✅ Neu zugewiesen ({result.assigned.length})
               </h4>
               <div className={styles.resultList}>
                 {result.assigned.map((item) => {
@@ -769,12 +870,46 @@ export default function BulkPayslipUpload({ employees }: Props) {
             </div>
           )}
 
-          {/* Skipped Pages Section */}
+          {/* Already Present / Skipped Duplicates Section */}
+          {result.alreadyPresent.length > 0 && (
+            <div className={styles.resultSection}>
+              <h4 className={styles.sectionTitle}>
+                ℹ️ Bereits vorhanden – Übersprungen ({result.alreadyPresent.length})
+              </h4>
+              <p className={styles.sectionHelp}>
+                Folgende Mitarbeiter hatten für {result.monthLabel} {result.yearLabel} bereits einen Lohnzettel hinterlegt. Sie wurden ignoriert, um doppelte Zustellungen im Mitarbeiter-Postfach zu verhindern:
+              </p>
+              <div className={styles.resultList}>
+                {result.alreadyPresent.map((item) => (
+                  <div key={item.page} className={styles.resultItem} style={{ borderLeft: "3px solid #0071e3" }}>
+                    <div className={styles.resultInfo}>
+                      <span className={styles.pageTag}>Seite {item.page}</span>
+                      <span className={styles.employeeName}>{item.employeeName}</span>
+                      <span style={{ fontSize: "0.85rem", color: "#64748b", marginLeft: "0.5rem" }}>
+                        ✓ {item.reason}
+                      </span>
+                    </div>
+                    {pageThumbnailsRef.current.get(item.page) && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setPreviewModalPage(item.page)}
+                      >
+                        Vorschau
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Skipped Non-Payslips Section */}
           {result.skipped.length > 0 && (
             <div className={styles.resultSection}>
-              <h4 className={styles.sectionTitle}>⏭️ Automatisch übersprungen ({result.skipped.length})</h4>
+              <h4 className={styles.sectionTitle}>⏭️ Nicht-Lohnzettel übersprungen ({result.skipped.length})</h4>
               <p className={styles.sectionHelp}>
-                Diese Seiten wurden als Übersichtsberichte / Kanzlei-Protokolle identifiziert und keinem Mitarbeiter zugewiesen.
+                Diese Seiten wurden als Kanzlei-Übersichten / Protokolle identifiziert und keinem Mitarbeiter zugewiesen.
               </p>
               <div className={styles.resultList}>
                 {result.skipped.map((item) => (
@@ -800,15 +935,17 @@ export default function BulkPayslipUpload({ employees }: Props) {
         </div>
       )}
 
-      {/* PDF Page Fullscreen Preview Modal */}
+      {/* Fullscreen Preview Modal */}
       {previewModalPage !== null && (
         <div className={styles.modalOverlay} onClick={() => setPreviewModalPage(null)}>
-          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h3 className={styles.modalTitle}>Vorschau: Seite {previewModalPage}</h3>
-              <button 
-                type="button" 
-                className={styles.modalCloseBtn}
+              <h3 className={styles.modalTitle}>
+                Vorschau Seite {previewModalPage}
+              </h3>
+              <button
+                type="button"
+                className={styles.closeBtn}
                 onClick={() => setPreviewModalPage(null)}
               >
                 ✕
@@ -816,13 +953,14 @@ export default function BulkPayslipUpload({ employees }: Props) {
             </div>
             <div className={styles.modalBody}>
               {pageThumbnailsRef.current.get(previewModalPage) ? (
-                <img 
-                  src={pageThumbnailsRef.current.get(previewModalPage)} 
-                  alt={`Vollansicht Seite ${previewModalPage}`}
-                  className={styles.modalPreviewImg}
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={pageThumbnailsRef.current.get(previewModalPage)}
+                  alt={`Vollbild Seite ${previewModalPage}`}
+                  className={styles.modalImg}
                 />
               ) : (
-                <p>Keine Vorschau verfügbar.</p>
+                <p>Keine Vorschau verfügbar</p>
               )}
             </div>
           </div>

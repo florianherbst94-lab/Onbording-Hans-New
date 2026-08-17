@@ -213,7 +213,21 @@ export default function PayslipAdminDashboard({ employees, initialPayslips }: Pr
   return (
     <div>
       {/* 1. Bulk Upload Tool */}
-      <BulkPayslipUpload employees={employees} />
+      <BulkPayslipUpload
+        employees={employees}
+        existingPayslips={payslips}
+        onPayslipAdded={(newSlip) => {
+          setPayslips((prev) => {
+            const withoutOld = prev.filter(
+              (p) => !(p.userId === newSlip.userId && p.month === newSlip.month && p.year === newSlip.year)
+            )
+            return [...withoutOld, newSlip]
+          })
+        }}
+        onPayslipDeleted={(id) => {
+          setPayslips((prev) => prev.filter((p) => p.id !== id))
+        }}
+      />
 
       {/* 2. Monthly Status Matrix & Verification Overview */}
       <div className={styles.matrixContainer}>
