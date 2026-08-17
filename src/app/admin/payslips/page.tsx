@@ -29,7 +29,10 @@ export default async function AdminPayslips() {
   }
 
   const rawEmployees = await prisma.user.findMany({
-    where: { isArchived: false },
+    where: { 
+      isArchived: false,
+      role: { not: "ADMIN" }
+    },
     include: {
       stepProgresses: {
         where: { stepId: "personal-data" },
@@ -37,8 +40,17 @@ export default async function AdminPayslips() {
     },
   })
 
+  // Filter out any admin test/system accounts (e.g. "User Admin", "Administrator", "admin@...")
+  const nonAdminEmployees = rawEmployees.filter((e) => {
+    const nameLower = (e.name || "").toLowerCase()
+    const emailLower = (e.email || "").toLowerCase()
+    if (nameLower.includes("admin") || nameLower.includes("administrator")) return false
+    if (emailLower.includes("admin") || emailLower.includes("administrator")) return false
+    return true
+  })
+
   // Parse personal data to get zipCode and separate name parts
-  const employees = rawEmployees.map((e) => {
+  const employees = nonAdminEmployees.map((e) => {
     let firstName = ""
     let lastName = ""
     let zipCode = ""

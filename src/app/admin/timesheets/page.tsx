@@ -38,7 +38,10 @@ export default async function AdminTimesheetPage() {
 
   // get distinct users for filter dropdown
   const rawUsers = await prisma.user.findMany({
-    where: { isArchived: false },
+    where: { 
+      isArchived: false,
+      role: { not: "ADMIN" }
+    },
     include: {
       stepProgresses: {
         where: { stepId: 'personal-data' }
@@ -46,8 +49,17 @@ export default async function AdminTimesheetPage() {
     }
   })
 
+  // Filter out any admin accounts
+  const nonAdminUsers = rawUsers.filter((u) => {
+    const nameLower = (u.name || "").toLowerCase()
+    const emailLower = (u.email || "").toLowerCase()
+    if (nameLower.includes("admin") || nameLower.includes("administrator")) return false
+    if (emailLower.includes("admin") || emailLower.includes("administrator")) return false
+    return true
+  })
+
   // Sort by last name alphabetically (Nachname)
-  const users = [...rawUsers].sort((a, b) => {
+  const users = [...nonAdminUsers].sort((a, b) => {
     const lastA = getLastName(a)
     const lastB = getLastName(b)
     return lastA.localeCompare(lastB, 'de-DE')

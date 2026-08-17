@@ -51,8 +51,17 @@ export default async function AdminDashboard() {
     },
   })
 
+  // Filter out any admin test/system accounts (e.g. "User Admin", "Administrator", "admin@...")
+  const nonAdminEmployees = rawEmployees.filter((u) => {
+    const nameLower = (u.name || "").toLowerCase()
+    const emailLower = (u.email || "").toLowerCase()
+    if (nameLower.includes("admin") || nameLower.includes("administrator")) return false
+    if (emailLower.includes("admin") || emailLower.includes("administrator")) return false
+    return true
+  })
+
   // Sort strictly by last name alphabetically (Nachname, A-Z)
-  const employees = [...rawEmployees].sort((a, b) => {
+  const employees = [...nonAdminEmployees].sort((a, b) => {
     const lastA = getLastName(a) || a.name || a.email || ""
     const lastB = getLastName(b) || b.name || b.email || ""
     return lastA.localeCompare(lastB, "de-DE")
