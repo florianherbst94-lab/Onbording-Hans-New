@@ -16,14 +16,17 @@ interface Employee {
 type PageType = 'PAYSLIP' | 'SKIP'
 
 interface AssignedResult {
+  payslipId?: string
   employeeName: string
   employeeId: string
   page: number
+  url?: string
 }
 
 interface UnassignedResult {
   page: number
   candidateName: string
+  candidateId?: string
 }
 
 interface SkippedResult {
@@ -38,10 +41,25 @@ interface BulkResult {
   totalPages: number
   monthLabel: string
   yearLabel: string
+  monthNum: number
+  yearNum: number
 }
 
 interface Props {
   employees: Employee[]
+}
+
+function normalizeText(str: string): string {
+  if (!str) return ""
+  return str
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .replace(/[,.;:\-_/\\()]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
 }
 
 export default function BulkPayslipUpload({ employees }: Props) {
@@ -49,12 +67,18 @@ export default function BulkPayslipUpload({ employees }: Props) {
   const [statusText, setStatusText] = useState("")
   const [result, setResult] = useState<BulkResult | null>(null)
   const [assigningPage, setAssigningPage] = useState<number | null>(null)
+  const [deletingPage, setDeletingPage] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [successBanner, setSuccessBanner] = useState<string | null>(null)
+  const [selectedEmployees, setSelectedEmployees] = useState<Record<number, string>>({})
+  const [previewModalPage, setPreviewModalPage] = useState<number | null>(null)
+
   const fileRef = useRef<HTMLInputElement>(null)
   const monthRef = useRef<HTMLSelectElement>(null)
   const yearRef = useRef<HTMLSelectElement>(null)
-  // Store split page PDFs for manual assignment later
+  // Store split page PDFs and page thumbnail data URLs
   const splitPagesRef = useRef<Map<number, Uint8Array>>(new Map())
+  const pageThumbnailsRef = useRef<Map<number, string>>(new Map())
 
   const currentYear = new Date().getFullYear()
   const years = [currentYear - 1, currentYear, currentYear + 1]
@@ -77,15 +101,9 @@ export default function BulkPayslipUpload({ employees }: Props) {
    * Extract text from each page using pdfjs-dist (runs in browser).
    */
   async function extractTextPerPage(data: ArrayBuffer, onProgress: (cur: number, total: number) => void): Promise<string[]> {
-    console.log("Starting text extraction...")
     const pdfjsLib = await import("pdfjs-dist")
-    
-    // Use unpkg as fallback if cdnjs is missing versions
     const version = pdfjsLib.version || "5.4.296"
-    const workerUrl = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
-    console.log(`Using PDF.js version ${version}, worker: ${workerUrl}`)
-    
-    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${version}/build/pdf.worker.min.mjs`
 
     const loadingTask = pdfjsLib.getDocument({ 
       data: new Uint8Array(data),
@@ -96,7 +114,6 @@ export default function BulkPayslipUpload({ employees }: Props) {
     
     const doc = await loadingTask.promise
     const totalPages = doc.numPages
-    console.log(`PDF loaded, total pages: ${totalPages}`)
     
     const texts: string[] = []
     for (let i = 1; i <= totalPages; i++) {
@@ -115,10 +132,8 @@ export default function BulkPayslipUpload({ employees }: Props) {
 
   /**
    * Robustly split PDF by rendering each page to a canvas (flattening).
-   * This handles encrypted or complex PDFs where direct page copying fails.
    */
   async function splitPages(data: ArrayBuffer, onProgress: (cur: number, total: number) => void): Promise<Map<number, Uint8Array>> {
-    console.log("Starting robust PDF split (flattening)...")
     const pdfjsLib = await import("pdfjs-dist")
     const { PDFDocument } = await import("pdf-lib")
     
@@ -132,12 +147,12 @@ export default function BulkPayslipUpload({ employees }: Props) {
     const pdf = await loadingTask.promise
     const totalPages = pdf.numPages
     const pagesMap = new Map<number, Uint8Array>()
+    const thumbnailsMap = new Map<number, string>()
 
     for (let i = 1; i <= totalPages; i++) {
       onProgress(i, totalPages)
       const page = await pdf.getPage(i)
       
-      // Use 2.0x scale for good print quality (approx 144 DPI)
       const viewport = page.getViewport({ scale: 2.0 })
       const canvas = document.createElement("canvas")
       const context = canvas.getContext("2d")
@@ -145,13 +160,11 @@ export default function BulkPayslipUpload({ employees }: Props) {
       canvas.width = viewport.width
 
       if (context) {
-        // Render PDF page to canvas
-        console.log(`Rendering page ${i} to canvas: ${canvas.width}x${canvas.height}`)
         await page.render({ canvasContext: context, viewport } as any).promise
         
-        // Convert to high-quality JPEG
         const imgDataUrl = canvas.toDataURL("image/jpeg", 0.9)
-        console.log(`Page ${i} image data length: ${imgDataUrl.length}`)
+        thumbnailsMap.set(i, imgDataUrl)
+
         const base64 = imgDataUrl.split(",")[1]
         const binStr = atob(base64)
         const imgBytes = new Uint8Array(binStr.length)
@@ -159,11 +172,9 @@ export default function BulkPayslipUpload({ employees }: Props) {
           imgBytes[j] = binStr.charCodeAt(j)
         }
 
-        // Create new 1-page PDF
         const newDoc = await PDFDocument.create()
         const jpgImage = await newDoc.embedJpg(imgBytes)
         
-        // Set page size to match original viewport
         const newPage = newDoc.addPage([viewport.width, viewport.height])
         newPage.drawImage(jpgImage, {
           x: 0,
@@ -178,13 +189,14 @@ export default function BulkPayslipUpload({ employees }: Props) {
     }
     
     await pdf.destroy()
+    pageThumbnailsRef.current = thumbnailsMap
     return pagesMap
   }
 
   /**
    * Upload a single-page PDF to the server.
    */
-  async function uploadPage(pageBytes: Uint8Array, userId: string, month: number, year: number): Promise<string> {
+  async function uploadPage(pageBytes: Uint8Array, userId: string, month: number, year: number): Promise<{ employeeName: string; payslipId?: string; url?: string }> {
     const blob = new Blob([pageBytes as any], { type: "application/pdf" })
     const file = new File([blob], "payslip.pdf", { type: "application/pdf" })
 
@@ -207,17 +219,20 @@ export default function BulkPayslipUpload({ employees }: Props) {
       throw new Error(`Server-Fehler (${res.status})`)
     }
     if (!res.ok) throw new Error(data.error || "Upload fehlgeschlagen")
-    return data.employeeName
+    return {
+      employeeName: data.employeeName,
+      payslipId: data.payslipId,
+      url: data.url
+    }
   }
 
   /**
    * Classify the page type based on known DATEV document headers.
-   * Only "Abrechnung" pages are actual individual payslips.
    */
   function classifyPage(pageText: string): { type: PageType; reason: string } {
     const text = pageText.toLowerCase()
     
-    if (text.includes("abrechnung der brutto") || text.includes("brutto/netto-bez")) {
+    if (text.includes("abrechnung der brutto") || text.includes("brutto/netto-bez") || text.includes("brutto/netto-abrechnung")) {
       return { type: 'PAYSLIP', reason: '' }
     }
     if (text.includes("lohnjournal")) {
@@ -226,94 +241,105 @@ export default function BulkPayslipUpload({ employees }: Props) {
     if (text.includes("meldebescheinigung")) {
       return { type: 'SKIP', reason: 'Meldebescheinigung (SV)' }
     }
-    if (text.includes("übersicht zahlungen")) {
+    if (text.includes("übersicht zahlungen") || text.includes("uebersicht zahlungen")) {
       return { type: 'SKIP', reason: 'Zahlungsübersicht' }
     }
-    if (text.includes("dü-protokoll") || text.includes("lohnsteuer-anmeldung")) {
+    if (text.includes("dü-protokoll") || text.includes("due-protokoll") || text.includes("lohnsteuer-anmeldung")) {
       return { type: 'SKIP', reason: 'DÜ-Protokoll / Steueranmeldung' }
     }
     if (text.includes("beitragsnachweis")) {
       return { type: 'SKIP', reason: 'Beitragsnachweis' }
     }
-    // Unknown page type — don't skip, let the matcher try
     return { type: 'PAYSLIP', reason: '' }
   }
 
   /**
-   * Match employee on an individual payslip page.
-   * Strategy:
-   *   1. Check if "Vorname Nachname" (full name combo) appears in the text.
-   *   2. Prefer exact full-name matches over partial matches.
-   *   3. Use zipCode as tiebreaker when multiple last-name matches exist.
+   * Robust employee matching supporting DATEV "Nachname, Vorname", "Vorname Nachname",
+   * umlaut variants, zip codes and multi-token matching.
    */
   function findEmployeeMatch(
     pageText: string
-  ): { employee: Employee | null, candidateName: string } {
-    const text = pageText.toLowerCase()
-    
-    // Score each employee
+  ): { employee: Employee | null; candidateName: string; candidateId?: string } {
+    const normText = normalizeText(pageText)
     const scored: { emp: Employee; score: number }[] = []
     
     for (const emp of employees) {
-      const fName = emp.firstName?.toLowerCase()?.trim()
-      const lName = emp.lastName?.toLowerCase()?.trim()
-      const zCode = emp.zipCode?.toLowerCase()?.trim()
+      const fName = emp.firstName ? normalizeText(emp.firstName) : ""
+      const lName = emp.lastName ? normalizeText(emp.lastName) : ""
+      const rawName = emp.name ? normalizeText(emp.name) : ""
+      const zCode = emp.zipCode ? normalizeText(emp.zipCode) : ""
       
-      if (!fName && !lName) continue
+      if (!fName && !lName && !rawName) continue
       
       let score = 0
-      
-      // Check if the full name combo appears (strongest signal for payslip pages)
-      // On DATEV payslips, the name appears as "Vorname Nachname" on one line
+
+      // Case 1: Exact full name combinations
       if (fName && lName) {
-        const fullNameCombo = `${fName} ${lName}`
-        if (text.includes(fullNameCombo)) {
-          score += 10 // Very strong match
+        const combo1 = `${fName} ${lName}`
+        const combo2 = `${lName} ${fName}`
+        
+        if (normText.includes(combo1) || normText.includes(combo2)) {
+          score += 12 // Very high confidence
+        } else if (normText.includes(fName) && normText.includes(lName)) {
+          // Both individual names present on the same page
+          score += 8
         } else {
-          // Check individual parts
-          if (text.includes(fName)) score += 2
-          if (text.includes(lName)) score += 2
+          if (lName.length >= 3 && normText.includes(lName)) score += 3
+          if (fName.length >= 3 && normText.includes(fName)) score += 2
         }
-      } else {
-        if (fName && text.includes(fName)) score += 2
-        if (lName && text.includes(lName)) score += 2
+      } else if (rawName) {
+        if (normText.includes(rawName)) {
+          score += 10
+        } else {
+          const parts = rawName.split(" ").filter(p => p.length >= 3)
+          const matchedParts = parts.filter(p => normText.includes(p))
+          if (parts.length > 1 && matchedParts.length === parts.length) {
+            score += 8
+          } else if (matchedParts.length > 0) {
+            score += matchedParts.length * 2
+          }
+        }
       }
-      
-      // Zip code as bonus confirmation
-      if (zCode && zCode.length >= 4 && text.includes(zCode)) score += 3
-      
+
+      // Bonus for zip code confirmation
+      if (zCode && zCode.length >= 4 && normText.includes(zCode)) {
+        score += 4
+      }
+
       if (score >= 4) {
         scored.push({ emp, score })
       }
     }
     
-    // Sort by score descending
     scored.sort((a, b) => b.score - a.score)
     
-    // If exactly one top-scorer with score >= 10, auto-assign (full name match)
-    if (scored.length >= 1 && scored[0].score >= 10) {
-      // Check for ambiguity: two people with same top score
+    // Unambiguous high confidence match (full name combo or both parts + zip)
+    if (scored.length >= 1 && scored[0].score >= 8) {
       if (scored.length === 1 || scored[0].score > scored[1].score) {
-        return { employee: scored[0].emp, candidateName: scored[0].emp.name || '' }
+        return { 
+          employee: scored[0].emp, 
+          candidateName: scored[0].emp.name || scored[0].emp.email || '',
+          candidateId: scored[0].emp.id
+        }
       }
     }
     
-    // If exactly one match with score >= 7 (name parts + zip), auto-assign
-    if (scored.length === 1 && scored[0].score >= 7) {
-      return { employee: scored[0].emp, candidateName: scored[0].emp.name || '' }
-    }
-    
-    // If there are candidates, suggest the best one
+    // Suggest top candidate for manual confirmation if available
     if (scored.length >= 1) {
-      return { employee: null, candidateName: scored[0].emp.name || '' }
+      return { 
+        employee: null, 
+        candidateName: scored[0].emp.name || scored[0].emp.email || '',
+        candidateId: scored[0].emp.id
+      }
     }
     
-    return { employee: null, candidateName: '' }
+    return { employee: null, candidateName: '', candidateId: undefined }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    setSuccessBanner(null)
     setResult(null)
 
     const file = fileRef.current?.files?.[0]
@@ -330,26 +356,16 @@ export default function BulkPayslipUpload({ employees }: Props) {
     try {
       const arrayBuffer = await file.arrayBuffer()
 
-      // Step 1: Extract text from each page (in browser)
-      setStatusText("Bibliotheken werden geladen…")
+      setStatusText("Lade PDF & analysiere Text…")
       const pageTexts = await extractTextPerPage(arrayBuffer.slice(0), (cur, total) => {
         setStatusText(`Analysiere Seite ${cur} von ${total}…`)
       })
 
-      // Step 2: Classify pages by document type
-      const pageClassifications = pageTexts.map((text, i) => {
-        const result = classifyPage(text)
-        console.log(`Page ${i + 1}: type=${result.type}, reason=${result.reason}`)
-        return result
-      })
+      const pageClassifications = pageTexts.map((text) => classifyPage(text))
 
-      const payslipPages = pageClassifications.filter(c => c.type === 'PAYSLIP').length
-      const skippedPages = pageClassifications.filter(c => c.type === 'SKIP').length
-      console.log(`Classification: ${payslipPages} payslips, ${skippedPages} skipped`)
-
-      // Step 3: Split ONLY payslip pages into individual PDFs (in browser)
+      setStatusText("Optimiere und teile Seiten…")
       const pages = await splitPages(arrayBuffer.slice(0), (cur, total) => {
-        setStatusText(`Teile Seite ${cur} von ${total}…`)
+        setStatusText(`Rendere Seite ${cur} von ${total}…`)
       })
       splitPagesRef.current = pages
 
@@ -358,48 +374,64 @@ export default function BulkPayslipUpload({ employees }: Props) {
       const assigned: AssignedResult[] = []
       const unassigned: UnassignedResult[] = []
       const skipped: SkippedResult[] = []
+      const initialSelected: Record<number, string> = {}
 
-      // Step 4: Match employees and upload matched pages
       for (let i = 0; i < pageTexts.length; i++) {
         const pageNum = i + 1
         const pageText = pageTexts[i]
         const classification = pageClassifications[i]
 
-        // Skip non-payslip pages entirely
         if (classification.type === 'SKIP') {
           skipped.push({ page: pageNum, reason: classification.reason })
           continue
         }
 
-        const { employee: emp, candidateName } = findEmployeeMatch(pageText)
+        const { employee: emp, candidateName, candidateId } = findEmployeeMatch(pageText)
 
         if (emp) {
-          setStatusText(`Lade Seite ${pageNum} hoch (${emp.name})…`)
+          setStatusText(`Speichere Seite ${pageNum} (${emp.name})…`)
           const pageBytes = pages.get(pageNum)
+          let uploadedUrl = ""
+          let pId = ""
           if (pageBytes) {
-            await uploadPage(pageBytes, emp.id, monthNum, yearNum)
+            const uploadRes = await uploadPage(pageBytes, emp.id, monthNum, yearNum)
+            uploadedUrl = uploadRes.url || ""
+            pId = uploadRes.payslipId || ""
           }
           assigned.push({
+            payslipId: pId,
             employeeName: emp.name || emp.email || "Unbekannt",
             employeeId: emp.id,
             page: pageNum,
+            url: uploadedUrl
           })
         } else {
           unassigned.push({
             page: pageNum,
             candidateName,
+            candidateId
           })
+          if (candidateId) {
+            initialSelected[pageNum] = candidateId
+          }
         }
       }
 
+      setSelectedEmployees(initialSelected)
       setResult({ 
         assigned, 
         unassigned, 
         skipped,
         totalPages: pageTexts.length,
         monthLabel: months.find(m => m.value === monthNum)?.label || "",
-        yearLabel: String(yearNum)
+        yearLabel: String(yearNum),
+        monthNum,
+        yearNum
       })
+
+      if (unassigned.length === 0 && assigned.length > 0) {
+        setSuccessBanner(`Alle ${assigned.length} Lohnzettel wurden erfolgreich und automatisch zugeordnet!`)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unbekannter Fehler")
     } finally {
@@ -408,21 +440,27 @@ export default function BulkPayslipUpload({ employees }: Props) {
     }
   }
 
-  async function handleManualAssign(page: number, userId: string) {
-    if (!monthRef.current || !yearRef.current) return
+  async function handleManualAssign(page: number) {
+    if (!result) return
+    const userId = selectedEmployees[page]
+
+    if (!userId) {
+      setError("Bitte wähle zuerst einen Mitarbeiter aus.")
+      return
+    }
 
     const pageBytes = splitPagesRef.current.get(page)
     if (!pageBytes) {
-      setError("Seite nicht mehr verfügbar — bitte PDF erneut hochladen")
+      setError("Seite nicht mehr im Speicher — bitte PDF erneut hochladen.")
       return
     }
 
     setAssigningPage(page)
+    setError(null)
+    setSuccessBanner(null)
 
     try {
-      const monthNum = parseInt(monthRef.current.value)
-      const yearNum = parseInt(yearRef.current.value)
-      const employeeName = await uploadPage(pageBytes, userId, monthNum, yearNum)
+      const uploadRes = await uploadPage(pageBytes, userId, result.monthNum, result.yearNum)
 
       setResult((prev) => {
         if (!prev) return prev
@@ -431,14 +469,68 @@ export default function BulkPayslipUpload({ employees }: Props) {
           unassigned: prev.unassigned.filter((u) => u.page !== page),
           assigned: [
             ...prev.assigned,
-            { employeeName, employeeId: userId, page },
+            { 
+              employeeName: uploadRes.employeeName, 
+              employeeId: userId, 
+              page,
+              payslipId: uploadRes.payslipId,
+              url: uploadRes.url 
+            },
           ].sort((a, b) => a.page - b.page),
         }
       })
+
+      setSuccessBanner(`✓ Lohnzettel für ${uploadRes.employeeName} (Seite ${page}) erfolgreich zugewiesen!`)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Fehler beim Zuordnen")
     } finally {
       setAssigningPage(null)
+    }
+  }
+
+  async function handleDeleteAssigned(item: AssignedResult) {
+    if (!result) return
+    const confirmDelete = window.confirm(`Zuordnung für "${item.employeeName}" (Seite ${item.page}) wirklich löschen / aufheben?`)
+    if (!confirmDelete) return
+
+    setDeletingPage(item.page)
+    setError(null)
+    setSuccessBanner(null)
+
+    try {
+      const res = await fetch("/api/payslips/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: item.payslipId,
+          userId: item.employeeId,
+          month: result.monthNum,
+          year: result.yearNum,
+        })
+      })
+
+      const data = await res.json()
+      if (!res.ok) {
+        throw new Error(data.error || "Fehler beim Löschen der Zuordnung")
+      }
+
+      setResult(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          assigned: prev.assigned.filter(a => a.page !== item.page),
+          unassigned: [
+            ...prev.unassigned,
+            { page: item.page, candidateName: item.employeeName, candidateId: item.employeeId }
+          ].sort((a, b) => a.page - b.page)
+        }
+      })
+
+      setSuccessBanner(`Zuordnung für "${item.employeeName}" wurde gelöscht. Seite ${item.page} ist wieder unter "Manuelle Zuordnung".`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen")
+    } finally {
+      setDeletingPage(null)
     }
   }
 
@@ -447,9 +539,9 @@ export default function BulkPayslipUpload({ employees }: Props) {
       <div className={styles.header}>
         <div className={styles.iconCircle}>📄</div>
         <div>
-          <h3 className={styles.title}>Sammel-PDF verarbeiten</h3>
+          <h3 className={styles.title}>Sammel-PDF verarbeiten (DATEV & Mehrfach-Abrechnungen)</h3>
           <p className={styles.subtitle}>
-            Lade eine PDF mit allen Lohnzetteln hoch — die Zuordnung erfolgt automatisch.
+            Lade eine PDF mit allen Lohnzetteln hoch — die Zuordnung erfolgt automatisch anhand von Vor- und Nachnamen.
           </p>
         </div>
       </div>
@@ -496,7 +588,7 @@ export default function BulkPayslipUpload({ employees }: Props) {
               {statusText || "Verarbeite PDF…"}
             </span>
           ) : (
-            "PDF analysieren & zuordnen"
+            "PDF analysieren & automatisch zuordnen"
           )}
         </Button>
       </form>
@@ -507,109 +599,233 @@ export default function BulkPayslipUpload({ employees }: Props) {
         </div>
       )}
 
+      {successBanner && (
+        <div className={styles.successBanner}>
+          <span>✅</span> {successBanner}
+        </div>
+      )}
+
       {result && (
         <div className={styles.results}>
           <div className={styles.resultSummary}>
             <span className={styles.summaryItem}>
-              📊 {result.totalPages} Seiten insgesamt
+              📊 {result.totalPages} Seiten analysiert
             </span>
             <span className={styles.summaryItem + " " + styles.successText}>
-              ✅ {result.assigned.length} zugewiesen
+              ✅ {result.assigned.length} zugeordnet ({result.monthLabel} {result.yearLabel})
             </span>
             {result.unassigned.length > 0 && (
               <span className={styles.summaryItem + " " + styles.warningText}>
-                ⚠️ {result.unassigned.length} offen
+                ⚠️ {result.unassigned.length} manuell zuordenbar
               </span>
             )}
             {result.skipped.length > 0 && (
               <span className={styles.summaryItem}>
-                ⏭️ {result.skipped.length} übersprungen
+                ⏭️ {result.skipped.length} Nicht-Lohnzettel übersprungen
               </span>
             )}
           </div>
 
-          {result.assigned.length > 0 && (
-            <div className={styles.resultSection}>
-              <h4 className={styles.sectionTitle}>Erfolgreich zugewiesen</h4>
-              <div className={styles.resultList}>
-                {result.assigned.map((item) => (
-                  <div key={item.page} className={styles.resultItem + " " + styles.successItem}>
-                    <div className={styles.resultInfo}>
-                      <span className={styles.pageTag}>Seite {item.page}</span>
-                      <span className={styles.employeeName}>{item.employeeName}</span>
-                    </div>
-                    <span className={styles.checkmark}>✓</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
+          {/* Unassigned / Manual Assignment Section */}
           {result.unassigned.length > 0 && (
             <div className={styles.resultSection}>
-              <h4 className={styles.sectionTitle}>Manuelle Zuordnung nötig</h4>
-              <div className={styles.resultList}>
-                {result.unassigned.map((item) => (
-                  <div key={item.page} className={styles.resultItem + " " + styles.warningItem}>
-                    <div className={styles.resultInfo}>
-                      <span className={styles.pageTag}>Seite {item.page}</span>
-                      <div className={styles.unassignedDetails}>
-                        <span className={styles.candidateName}>
-                          {item.candidateName || "(Kein Name erkannt)"}
-                        </span>
+              <div className={styles.sectionHeaderRow}>
+                <h4 className={styles.sectionTitle}>
+                  ⚠️ Manuelle Zuordnung erforderlich ({result.unassigned.length} Seiten)
+                </h4>
+                <span className={styles.badgeWarning}>Aktion erforderlich</span>
+              </div>
+              <p className={styles.sectionHelp}>
+                Für folgende Seiten konnte der Name nicht eindeutig automatisch zugeordnet werden. Klicke auf die Vorschau, um das Dokument zu prüfen, und weise es dem passenden Mitarbeiter zu:
+              </p>
+              <div className={styles.unassignedGrid}>
+                {result.unassigned.map((item) => {
+                  const thumb = pageThumbnailsRef.current.get(item.page)
+                  return (
+                    <div key={item.page} className={styles.unassignedCard}>
+                      <div className={styles.cardHeader}>
+                        <span className={styles.pageTag}>Seite {item.page}</span>
                         <span className={styles.periodTag}>
                           Lohnzettel {result.monthLabel} {result.yearLabel}
                         </span>
                       </div>
+
+                      <div className={styles.cardBody}>
+                        {thumb ? (
+                          <div 
+                            className={styles.thumbnailContainer}
+                            onClick={() => setPreviewModalPage(item.page)}
+                            title="Klicken für Vollbild-Vorschau"
+                          >
+                            <img src={thumb} alt={`Vorschau Seite ${item.page}`} className={styles.thumbnailImg} />
+                            <div className={styles.thumbnailOverlay}>
+                              <span>🔍 Vorschau öffnen</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className={styles.thumbnailPlaceholder}>
+                            Keine Vorschau verfügbar
+                          </div>
+                        )}
+
+                        <div className={styles.cardDetails}>
+                          <div className={styles.candidateBadge}>
+                            <span className={styles.candidateLabel}>Erkannter Text / Vorschlag:</span>
+                            <span className={styles.candidateName}>
+                              {item.candidateName || "Kein Name erkannt"}
+                            </span>
+                          </div>
+
+                          <div className={styles.assignForm}>
+                            <label className={styles.selectLabel}>Mitarbeiter zuweisen:</label>
+                            <select
+                              id={`assign-${item.page}`}
+                              className={styles.assignSelect}
+                              value={selectedEmployees[item.page] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                setSelectedEmployees(prev => ({ ...prev, [item.page]: val }))
+                              }}
+                              disabled={assigningPage === item.page}
+                            >
+                              <option value="">-- Mitarbeiter auswählen --</option>
+                              {employees.map((emp) => (
+                                <option key={emp.id} value={emp.id}>
+                                  {emp.lastName ? `${emp.lastName}, ${emp.firstName || ''}` : (emp.name || emp.email)}
+                                </option>
+                              ))}
+                            </select>
+
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={!selectedEmployees[item.page] || assigningPage === item.page}
+                              onClick={() => handleManualAssign(item.page)}
+                            >
+                              {assigningPage === item.page ? (
+                                <span className={styles.loadingText}>
+                                  <span className={styles.spinner} /> Speichert…
+                                </span>
+                              ) : (
+                                "✓ Jetzt Zuordnen"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                    <div className={styles.assignControls}>
-                      <select
-                        id={`assign-${item.page}`}
-                        className={styles.assignSelect}
-                        defaultValue=""
-                        onChange={(e) => {
-                          if (e.target.value) {
-                            handleManualAssign(item.page, e.target.value)
-                          }
-                        }}
-                        disabled={assigningPage === item.page}
-                      >
-                        <option value="">Mitarbeiter wählen…</option>
-                        {employees.map((emp) => (
-                          <option key={emp.id} value={emp.id}>
-                            {emp.name || emp.email}
-                          </option>
-                        ))}
-                      </select>
-                      {assigningPage === item.page && (
-                        <span className={styles.spinner} />
-                      )}
-                    </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
 
+          {/* Assigned Results Section */}
+          {result.assigned.length > 0 && (
+            <div className={styles.resultSection}>
+              <h4 className={styles.sectionTitle}>
+                ✅ Erfolgreich zugewiesen ({result.assigned.length})
+              </h4>
+              <div className={styles.resultList}>
+                {result.assigned.map((item) => {
+                  const thumb = pageThumbnailsRef.current.get(item.page)
+                  return (
+                    <div key={item.page} className={styles.resultItem + " " + styles.successItem}>
+                      <div className={styles.resultInfo}>
+                        <span className={styles.pageTag}>Seite {item.page}</span>
+                        {thumb && (
+                          <button
+                            type="button"
+                            className={styles.miniThumbBtn}
+                            onClick={() => setPreviewModalPage(item.page)}
+                            title="Vorschau ansehen"
+                          >
+                            <img src={thumb} alt="Mini-Vorschau" className={styles.miniThumbImg} />
+                          </button>
+                        )}
+                        <span className={styles.employeeName}>{item.employeeName}</span>
+                      </div>
+                      
+                      <div className={styles.assignedActions}>
+                        {item.url && (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
+                            <Button variant="ghost" size="sm">PDF ansehen</Button>
+                          </a>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className={styles.deleteAssignedBtn}
+                          disabled={deletingPage === item.page}
+                          onClick={() => handleDeleteAssigned(item)}
+                        >
+                          {deletingPage === item.page ? "Löscht…" : "Zuordnung aufheben / Löschen"}
+                        </Button>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Skipped Pages Section */}
           {result.skipped.length > 0 && (
             <div className={styles.resultSection}>
-              <h4 className={styles.sectionTitle}>Automatisch übersprungen</h4>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
-                Diese Seiten sind keine individuellen Lohnzettel und wurden nicht zugeordnet.
+              <h4 className={styles.sectionTitle}>⏭️ Automatisch übersprungen ({result.skipped.length})</h4>
+              <p className={styles.sectionHelp}>
+                Diese Seiten wurden als Übersichtsberichte / Kanzlei-Protokolle identifiziert und keinem Mitarbeiter zugewiesen.
               </p>
               <div className={styles.resultList}>
                 {result.skipped.map((item) => (
-                  <div key={item.page} className={styles.resultItem} style={{ opacity: 0.6 }}>
+                  <div key={item.page} className={styles.resultItem} style={{ opacity: 0.7 }}>
                     <div className={styles.resultInfo}>
                       <span className={styles.pageTag}>Seite {item.page}</span>
-                      <span style={{ fontSize: '0.85rem' }}>{item.reason}</span>
+                      <span style={{ fontSize: '0.9rem' }}>{item.reason}</span>
                     </div>
-                    <span>⏭️</span>
+                    {pageThumbnailsRef.current.get(item.page) && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setPreviewModalPage(item.page)}
+                      >
+                        Vorschau
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* PDF Page Fullscreen Preview Modal */}
+      {previewModalPage !== null && (
+        <div className={styles.modalOverlay} onClick={() => setPreviewModalPage(null)}>
+          <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3 className={styles.modalTitle}>Vorschau: Seite {previewModalPage}</h3>
+              <button 
+                type="button" 
+                className={styles.modalCloseBtn}
+                onClick={() => setPreviewModalPage(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {pageThumbnailsRef.current.get(previewModalPage) ? (
+                <img 
+                  src={pageThumbnailsRef.current.get(previewModalPage)} 
+                  alt={`Vollansicht Seite ${previewModalPage}`}
+                  className={styles.modalPreviewImg}
+                />
+              ) : (
+                <p>Keine Vorschau verfügbar.</p>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

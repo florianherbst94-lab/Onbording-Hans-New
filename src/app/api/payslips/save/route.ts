@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/auth"
 import { prisma } from "@/lib/prisma"
 import { put } from "@vercel/blob"
+import { writeFile, mkdir } from "fs/promises"
+import path from "path"
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -20,27 +22,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Fehlende Daten" }, { status: 400 })
     }
 
-    // Single-page PDFs are small (< 200KB), well within Vercel's limit
     const buffer = Buffer.from(await file.arrayBuffer())
-    const filename = `payslips/${userId}_${year}_${month}_${Date.now()}.pdf`
-    const blob = await put(filename, buffer, { 
-      access: "public",
-      contentType: "application/pdf"
-    })
+    let fileUrl = ""
 
-    await prisma.payslip.upsert({
+    if (process.env.BLOB_READ_WRITE_TOKEN) {
+      const filename = `payslips/${userId}_${year}_${month}_${Date.now()}.pdf`
+      const blob = await put(filename, buffer, { 
+        access: "public",
+        contentType: "application/pdf",
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      })
+      fileUrl = blob.url
+    } else {
+      // Local development fallback
+      const filename = `${userId}_${year}_${month}_${Date.now()}.pdf`
+      const baseUploadDir = path.join(process.cwd(), "public", "uploads", "payslips")
+      await mkdir(baseUploadDir, { recursive: true })
+      await writeFile(path.join(baseUploadDir, filename), buffer)
+      fileUrl = `/uploads/payslips/${filename}`
+    }
+
+    const payslip = await prisma.payslip.upsert({
       where: {
         userId_month_year: { userId, month, year },
       },
       update: {
-        url: blob.url,
+        url: fileUrl,
         uploadedAt: new Date(),
       },
       create: {
         userId,
         month,
         year,
-        url: blob.url,
+        url: fileUrl,
       },
     })
 
@@ -51,6 +65,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      payslipId: payslip.id,
+      url: payslip.url,
+      userId: userId,
+      month: month,
+      year: year,
       employeeName: user?.name || user?.email || "Unbekannt",
     })
   } catch (error) {

@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma"
+import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { revalidatePath } from "next/cache"
+import { LuExternalLink, LuUser, LuFolderOpen } from "react-icons/lu"
 import styles from "./page.module.css"
 
 function getLastName(user: any) {
-  const progress = user.stepProgresses?.find((p: any) => p.stepId === 'personal-data')
+  const progress = user.stepProgresses?.find((p: any) => p.stepId === "personal-data")
   if (progress?.data) {
     try {
       const pd = JSON.parse(progress.data)
@@ -22,23 +24,38 @@ function getLastName(user: any) {
   return ""
 }
 
+function getFirstName(user: any) {
+  const progress = user.stepProgresses?.find((p: any) => p.stepId === "personal-data")
+  if (progress?.data) {
+    try {
+      const pd = JSON.parse(progress.data)
+      if (pd.firstName) return pd.firstName.trim()
+    } catch (e) {}
+  }
+  if (user.name) {
+    const parts = user.name.trim().split(/\s+/)
+    return parts[0] || ""
+  }
+  return ""
+}
+
 export default async function AdminDashboard() {
   const rawEmployees = await prisma.user.findMany({
-    where: { role: 'EMPLOYEE', isArchived: false },
-    include: { 
+    where: { role: "EMPLOYEE", isArchived: false },
+    include: {
       onboardingStatus: true,
       documents: {
-        where: { type: 'CONTRACT_SIGNED' }
+        where: { type: "CONTRACT_SIGNED" },
       },
-      stepProgresses: true
-    }
+      stepProgresses: true,
+    },
   })
 
-  // Sort by last name alphabetically (Nachname)
+  // Sort strictly by last name alphabetically (Nachname, A-Z)
   const employees = [...rawEmployees].sort((a, b) => {
-    const lastA = getLastName(a)
-    const lastB = getLastName(b)
-    return lastA.localeCompare(lastB, 'de-DE')
+    const lastA = getLastName(a) || a.name || a.email || ""
+    const lastB = getLastName(b) || b.name || b.email || ""
+    return lastA.localeCompare(lastB, "de-DE")
   })
 
   async function resetProgress(userId: string) {
@@ -46,21 +63,19 @@ export default async function AdminDashboard() {
     await prisma.stepProgress.deleteMany({ where: { userId } })
     await prisma.onboardingStatus.upsert({
       where: { userId },
-      create: { userId, status: 'INVITED' },
-      update: { status: 'INVITED' }
+      create: { userId, status: "INVITED" },
+      update: { status: "INVITED" },
     })
     revalidatePath("/admin")
   }
 
   async function archiveEmployee(userId: string) {
     "use server"
-    console.log(`[Archive Action] Starting for userId: ${userId}`)
     try {
-      const result = await prisma.user.update({
+      await prisma.user.update({
         where: { id: userId },
-        data: { isArchived: true }
+        data: { isArchived: true },
       })
-      console.log(`[Archive Action] SUCCESS for ${result.email}`)
     } catch (error) {
       console.error(`[Archive Action] FAILED for ${userId}:`, error)
     }
@@ -71,64 +86,106 @@ export default async function AdminDashboard() {
   return (
     <div className={styles.dashboard}>
       <div className={styles.headerArea}>
-        <h1 className={styles.pageTitle}>Dashboard / Mitarbeiter</h1>
+        <div>
+          <h1 className={styles.pageTitle}>Mitarbeiter Übersicht</h1>
+          <p className={styles.pageSubtitle}>
+            Verwalte alle aktiven Mitarbeiter, öffne direkt die Mitarbeiterakte oder bearbeite den Onboarding-Status.
+          </p>
+        </div>
+        <div className={styles.statsBadge}>
+          {employees.length} aktive Mitarbeiter
+        </div>
       </div>
-      
+
       <Card className={styles.listCard}>
-        <CardHeader>
-          <CardTitle>Mitarbeiter Übersicht</CardTitle>
-        </CardHeader>
         <CardContent>
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Name</th>
-                  <th>Mitarbeiter-Akte</th>
-                  <th>Bereich</th>
-                  <th>E-Mail</th>
-                  <th>Status</th>
-                  <th>Steuerkanzlei</th>
-                  <th>Erstellt am</th>
-                  <th>Optionen</th>
+                  <th style={{ width: "35%" }}>Mitarbeiter / Akte</th>
+                  <th style={{ width: "15%" }}>Bereich</th>
+                  <th style={{ width: "15%" }}>Onboarding</th>
+                  <th style={{ width: "18%" }}>Steuerkanzlei</th>
+                  <th style={{ width: "17%", textAlign: "right" }}>Aktionen</th>
                 </tr>
               </thead>
               <tbody>
                 {employees.map((emp) => {
-                  const advisorProgress = emp.stepProgresses?.find(p => p.stepId === 'advisor-sent')
+                  const advisorProgress = emp.stepProgresses?.find(
+                    (p) => p.stepId === "advisor-sent"
+                  )
+                  const lName = getLastName(emp)
+                  const fName = getFirstName(emp)
+                  const displayName = lName ? `${lName}, ${fName}` : emp.name || emp.email
 
                   return (
-                    <tr key={emp.id}>
-                      <td>{emp.name || '-'}</td>
+                    <tr key={emp.id} className={styles.tableRow}>
                       <td>
-                        <a href={`/admin/contracts/${emp.id}`} className={styles.actionBtn}>
-                          <Button variant="outline" size="sm">Mitarbeiter-Akte</Button>
-                        </a>
+                        <Link
+                          href={`/admin/contracts/${emp.id}`}
+                          className={styles.employeeCardLink}
+                          title="Zur Mitarbeiterakte"
+                        >
+                          <div className={styles.avatarCircle}>
+                            <LuUser />
+                          </div>
+                          <div className={styles.empNameCol}>
+                            <span className={styles.primaryName}>
+                              {displayName}
+                            </span>
+                            <span className={styles.secondaryEmail}>{emp.email}</span>
+                          </div>
+                          <span className={styles.openAkteBadge}>
+                            <LuFolderOpen /> Akte öffnen
+                          </span>
+                        </Link>
                       </td>
-                      <td>{emp.jobRole || 'SERVICE'}</td>
-                      <td>{emp.email}</td>
                       <td>
-                        <span className={`${styles.badge} ${styles['status-' + (emp.onboardingStatus?.status || 'INVITED')]}`}>
-                          {emp.onboardingStatus?.status || 'INVITED'}
+                        <span className={styles.roleTag}>
+                          {emp.jobRole || "SERVICE"}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`${styles.badge} ${
+                            styles["status-" + (emp.onboardingStatus?.status || "INVITED")]
+                          }`}
+                        >
+                          {emp.onboardingStatus?.status || "INVITED"}
                         </span>
                       </td>
                       <td>
                         {advisorProgress ? (
-                          <span style={{ fontSize: '11px', backgroundColor: '#e6f4ea', color: '#137333', padding: '4px 8px', borderRadius: '12px', fontWeight: 'bold' }}>
-                            {advisorProgress.updatedAt.toLocaleDateString('de-DE')} {advisorProgress.updatedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })} Uhr
+                          <span className={styles.advisorDoneBadge}>
+                            ✓ {advisorProgress.updatedAt.toLocaleDateString("de-DE")}
                           </span>
                         ) : (
-                          <span style={{ color: '#aaa', fontSize: '12px' }}>Ausstehend</span>
+                          <span className={styles.advisorPendingBadge}>Ausstehend</span>
                         )}
                       </td>
-                      <td>{emp.createdAt.toLocaleDateString('de-DE')}</td>
-                      <td>
+                      <td style={{ textAlign: "right" }}>
                         <div className={styles.tableActions}>
-                          <form action={resetProgress.bind(null, emp.id)} style={{ display: 'inline' }}>
-                            <Button variant="ghost" size="sm" type="submit" className={styles.resetBtn}>Reset</Button>
+                          <form
+                            action={resetProgress.bind(null, emp.id)}
+                            style={{ display: "inline" }}
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              type="submit"
+                              className={styles.resetBtn}
+                            >
+                              Reset
+                            </Button>
                           </form>
-                          <form action={archiveEmployee.bind(null, emp.id)} style={{ display: 'inline' }}>
-                            <Button variant="secondary" size="sm" type="submit">Archivieren</Button>
+                          <form
+                            action={archiveEmployee.bind(null, emp.id)}
+                            style={{ display: "inline" }}
+                          >
+                            <Button variant="secondary" size="sm" type="submit">
+                              Archivieren
+                            </Button>
                           </form>
                         </div>
                       </td>
@@ -137,7 +194,9 @@ export default async function AdminDashboard() {
                 })}
                 {employees.length === 0 && (
                   <tr>
-                    <td colSpan={8} className={styles.empty}>Keine Mitarbeiter gefunden.</td>
+                    <td colSpan={5} className={styles.empty}>
+                      Keine aktiven Mitarbeiter gefunden.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -148,4 +207,3 @@ export default async function AdminDashboard() {
     </div>
   )
 }
-

@@ -6,7 +6,7 @@ export function calculateTotalHours(startTime: string, endTime: string, breakMin
   
   if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return 0
   
-  let startTotalMins = startH * 60 + startM
+  const startTotalMins = startH * 60 + startM
   let endTotalMins = endH * 60 + endM
   
   // Handle cross-midnight by adding 24 hours to end time

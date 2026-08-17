@@ -9,8 +9,14 @@ import { Button } from "@/components/ui/Button"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
 import { deleteDocument } from "../../adminActions"
+import { deletePayslip } from "../../payslips/actions"
 import DeleteButton from "@/components/admin/DeleteButton"
 import styles from "./page.module.css"
+
+const MONTH_NAMES = [
+  "", "Januar", "Februar", "März", "April", "Mai", "Juni",
+  "Juli", "August", "September", "Oktober", "November", "Dezember"
+]
 
 const getEndDate = (start?: Date | null | string) => {
   const s = start ? new Date(start) : new Date();
@@ -41,9 +47,12 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
     where: { userId }
   })
 
+  const payslips = await prisma.payslip.findMany({
+    where: { userId },
+    orderBy: [{ year: 'desc' }, { month: 'desc' }]
+  })
+
   const document = documents.find(d => d.type === "CONTRACT_SIGNED")
-
-
 
   let personalData = null
   if (personalDataStep?.data) {
@@ -134,6 +143,65 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
         </div>
       </div>
       
+      {/* Lohnzettel & Abrechnungen Section */}
+      <div className={styles.auditLog} style={{ marginTop: '2rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+          <div>
+            <h2 style={{ margin: 0 }}>Lohnabrechnungen & Lohnzettel ({payslips.length})</h2>
+            <p style={{ margin: '0.25rem 0 0', color: '#64748b', fontSize: '0.9rem' }}>
+              Alle für {name} bereitgestellten Abrechnungen im Überblick.
+            </p>
+          </div>
+          <a href="/admin/payslips">
+            <Button variant="secondary" size="sm">+ Lohnzettel verwalten / hochladen</Button>
+          </a>
+        </div>
+        
+        <div className={styles.tableWrapper}>
+          <table className={styles.auditTable}>
+            <thead>
+              <tr>
+                <th>Abrechnungszeitraum</th>
+                <th>Bereitgestellt am</th>
+                <th style={{ textAlign: 'right' }}>Aktionen</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payslips.map(slip => (
+                <tr key={slip.id}>
+                  <td>
+                    <strong>{MONTH_NAMES[slip.month] || `Monat ${slip.month}`} {slip.year}</strong>
+                  </td>
+                  <td>
+                    {new Date(slip.uploadedAt).toLocaleDateString("de-DE", { 
+                      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' 
+                    })} Uhr
+                  </td>
+                  <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'inline-flex', gap: '8px' }}>
+                      <a href={slip.url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="outline" size="sm">Ansehen / Download</Button>
+                      </a>
+                      <DeleteButton 
+                        action={deletePayslip.bind(null, slip.id)} 
+                        confirmMessage={`Lohnzettel für ${MONTH_NAMES[slip.month]} ${slip.year} wirklich löschen?`} 
+                      />
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {payslips.length === 0 && (
+                <tr>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '1.5rem', color: '#86868b' }}>
+                    Noch keine Lohnabrechnungen für diesen Mitarbeiter hinterlegt.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <div className={styles.wageEditorArea}>
         <h2>Vergütung anpassen</h2>
         <UserWageEditor userId={userId} currentWage={user?.hourlyWage || 13.90} />
