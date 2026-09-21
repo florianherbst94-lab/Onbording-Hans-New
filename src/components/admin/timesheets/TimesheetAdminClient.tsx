@@ -156,7 +156,8 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
       return;
     }
 
-    const { jsPDF } = await import("jspdf");
+    // @ts-ignore
+    const { jsPDF } = await import("jspdf/dist/jspdf.es.min.js");
     const autoTable = (await import("jspdf-autotable")).default;
 
     const doc = new jsPDF({ orientation: "landscape" });
