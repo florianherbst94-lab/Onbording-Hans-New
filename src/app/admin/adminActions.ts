@@ -144,6 +144,7 @@ export async function inviteEmployee(formData: FormData) {
         name,
         role: 'EMPLOYEE',
         jobRole,
+        contractType,
         startDate,
         hourlyWage,
         password: hashedPassword,
@@ -159,6 +160,7 @@ export async function inviteEmployee(formData: FormData) {
         startDate: startDate || user.startDate,
         hourlyWage: hourlyWage || user.hourlyWage,
         jobRole: jobRole || user.jobRole,
+        contractType: contractType || user.contractType,
         password: hashedPassword
       }
     })
