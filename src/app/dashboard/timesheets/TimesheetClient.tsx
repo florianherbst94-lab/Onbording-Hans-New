@@ -21,6 +21,8 @@ export default function TimesheetClient({ initialTimesheets }: Props) {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>(initialTimesheets)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
   
   // Calculate earnings for the current month (based on approved entries)
   const now = new Date();
@@ -110,7 +112,7 @@ export default function TimesheetClient({ initialTimesheets }: Props) {
                 <div key={ts.id} className={styles.timesheetCard}>
                   <div className={styles.tsMain}>
                     <div className={styles.tsDate}>
-                      {new Date(ts.date).toLocaleDateString("de-DE", { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {isMounted ? new Date(ts.date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
                     </div>
                     <div className={styles.tsTimes}>
                       {ts.startTime} - {ts.endTime} Uhr ({ts.breakMinutes} Min Pause)

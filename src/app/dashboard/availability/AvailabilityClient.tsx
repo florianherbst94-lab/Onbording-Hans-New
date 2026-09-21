@@ -8,9 +8,11 @@ export default function AvailabilityClient({ requests }: { requests: any[] }) {
   const [responses, setResponses] = useState<Record<string, { status: "YES" | "NO" | "MAYBE", comment: string }>>({})
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
 
   // Wait, we need to load existing responses from the API
   useEffect(() => {
+    setIsMounted(true)
     async function loadResponses() {
       // For simplicity, we fetch all responses for the user for the PUBLISHED requests
       // In a real optimized app, you'd fetch per request, but here we just fetch one by one
@@ -82,7 +84,7 @@ export default function AvailabilityClient({ requests }: { requests: any[] }) {
   }
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("de-DE", { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })
+    return isMounted ? new Date(dateString).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }) : ""
   }
 
   return (

@@ -10,6 +10,8 @@ interface Props {
 
 export default function MemberCard({ firstName, lastName, birthDate }: Props) {
   const [timeStr, setTimeStr] = useState<string>("")
+  const [isMounted, setIsMounted] = useState(false)
+  useEffect(() => setIsMounted(true), [])
 
   useEffect(() => {
     const updateTime = () => {
@@ -33,7 +35,7 @@ export default function MemberCard({ firstName, lastName, birthDate }: Props) {
   let formattedBirthDate = '-'
   if (birthDate) {
     try {
-      formattedBirthDate = new Date(birthDate).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+      formattedBirthDate = isMounted ? new Date(birthDate).toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }) : ""
     } catch {}
   }
 

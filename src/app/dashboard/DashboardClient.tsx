@@ -52,6 +52,11 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
   const [docSection, setDocSection] = useState<"general" | "payslips">("general")
   const [myShifts, setMyShifts] = useState<any[]>([])
   const [isUploadingHygiene, setIsUploadingHygiene] = useState(false)
+  const [isMounted, setIsMounted] = useState(false)
+
+  React.useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   React.useEffect(() => {
     if (activeTab === "shifts") {
@@ -102,8 +107,8 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
   
   let showHygieneCard = true
   if (hygieneDoc) {
-    const uploadedDate = new Date(hygieneDoc.uploadedAt)
-    const fiveDaysAgo = new Date()
+    const uploadedDate = (isMounted ? new Date(hygieneDoc.uploadedAt) : new Date(0))
+    const fiveDaysAgo = isMounted ? new Date() : new Date(0)
     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5)
     
     if (uploadedDate < fiveDaysAgo) {
@@ -208,7 +213,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                     {summary?.nextShift ? (
                       <>
                         <p className={styles.actionText}>
-                          <strong>{new Date(summary.nextShift.plan.date).toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: '2-digit' })}</strong>
+                          <strong>{isMounted ? new Date(summary.nextShift.plan.date).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit" }) : ""}</strong>
                           <br />
                           {summary.nextShift.plan.eventName || 'Veranstaltung'} · {summary.nextShift.startTime} Uhr
                         </p>
@@ -325,7 +330,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                       <Card key={doc.id} className={styles.docCard}>
                         <span className={styles.docIcon}><LuFileText /></span>
                         <h3 className={styles.docTitle}>{doc.name}</h3>
-                        <p className={styles.docInfo}>Hochgeladen am {new Date(doc.uploadedAt).toLocaleDateString("de-DE")}</p>
+                        <p className={styles.docInfo}>Hochgeladen am {isMounted ? new Date(doc.uploadedAt).toLocaleDateString("de-DE") : ""}</p>
                         <a href={doc.type === "CONTRACT_SIGNED" ? "/dashboard/contract" : doc.url} target={doc.type === "CONTRACT_SIGNED" ? undefined : "_blank"} rel="noopener noreferrer">
                           <Button fullWidth variant="outline">Anschauen / Download</Button>
                         </a>
@@ -344,7 +349,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                       <Card key={slip.id} className={styles.docCard}>
                         <span className={styles.docIcon}><LuDollarSign /></span>
                         <h3 className={styles.docTitle}>Lohnzettel {MONTHS[slip.month - 1]} {slip.year}</h3>
-                        <p className={styles.docInfo}>Bereitgestellt am {new Date(slip.uploadedAt).toLocaleDateString("de-DE")}</p>
+                        <p className={styles.docInfo}>Bereitgestellt am {isMounted ? new Date(slip.uploadedAt).toLocaleDateString("de-DE") : ""}</p>
                         <a href={slip.url} target="_blank" rel="noopener noreferrer">
                           <Button fullWidth variant="outline">Herunterladen</Button>
                         </a>
@@ -366,7 +371,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                 myShifts.map((a: any) => (
                   <Card key={a.id} className={styles.docCard}>
                     <div className={styles.shiftCard}>
-                      <h3 className={styles.shiftDate}>{new Date(a.plan.date).toLocaleDateString("de-DE", { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' })}</h3>
+                      <h3 className={styles.shiftDate}>{isMounted ? new Date(a.plan.date).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</h3>
                       <div className={styles.shiftEvent}>{a.plan.eventName || 'Veranstaltung'}</div>
                       <div className={styles.shiftDetails}>
                         <div><span className={styles.shiftLabel}>Bereich</span><div className={styles.shiftValue}>{a.area}</div></div>
