@@ -345,7 +345,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
               ) : (
                 <div className={styles.grid}>
                   {payslips.length > 0 ? (
-                    payslips.sort((a, b) => b.year - a.year || b.month - a.month).map((slip) => (
+                    [...payslips].sort((a, b) => b.year - a.year || b.month - a.month).map((slip) => (
                       <Card key={slip.id} className={styles.docCard}>
                         <span className={styles.docIcon}><LuDollarSign /></span>
                         <h3 className={styles.docTitle}>Lohnzettel {MONTHS[slip.month - 1]} {slip.year}</h3>
