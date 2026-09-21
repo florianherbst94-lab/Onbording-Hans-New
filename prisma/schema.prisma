@@ -198,6 +198,7 @@ model StaffPlanRow {
   sortOrder       Int           @default(0)
   assignmentLabel String        // z.B. "Beton Bar (Bar-Chef)", "Einlass", "CvD"
   employeeId      String?       // null = unbesetzte Position
+  customName      String?       // Für externe Mitarbeiter oder manuelle Eingaben
   startTime       String?       // z.B. "22:00"
   endTime         String?       // z.B. "06:00"
   note            String?

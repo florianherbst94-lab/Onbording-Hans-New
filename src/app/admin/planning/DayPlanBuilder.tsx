@@ -11,6 +11,7 @@ interface PlanRow {
   assignmentLabel: string
   employeeId: string | null
   employeeName: string | null
+  customName?: string | null
   startTime: string
   endTime: string
   note: string
@@ -44,13 +45,13 @@ const DEFAULT_ROWS = [
 let rowIdCounter = 0
 function makeRow(label = "", startTime = ""): PlanRow {
   rowIdCounter++
-  return { id: `_new_${rowIdCounter}_${Date.now()}`, assignmentLabel: label, employeeId: null, employeeName: null, startTime, endTime: "", note: "" }
+  return { id: `_new_${rowIdCounter}_${Date.now()}`, assignmentLabel: label, employeeId: null, employeeName: null, customName: null, startTime, endTime: "", note: "" }
 }
 
 /* ─── Employee Picker Popover ─── */
 function EmployeePicker({ avails, onSelect, onClose, anchorRect }: {
   avails: AvailInfo[]
-  onSelect: (empId: string, empName: string) => void
+  onSelect: (empId: string | null, empName: string) => void
   onClose: () => void
   anchorRect: DOMRect | null
 }) {
@@ -83,12 +84,24 @@ function EmployeePicker({ avails, onSelect, onClose, anchorRect }: {
     <div ref={ref} className={styles.picker} style={pickerStyle}>
       <input
         type="text"
-        placeholder="Mitarbeiter suchen…"
+        placeholder="Mitarbeiter suchen oder Namen eingeben…"
         value={search}
         onChange={e => setSearch(e.target.value)}
         className={styles.pickerSearch}
         autoFocus
       />
+      {search.trim().length > 0 && (
+        <div className={styles.pickerGroup} style={{ marginTop: '8px', borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>
+          <button 
+            type="button" 
+            className={styles.pickerItem} 
+            onClick={() => onSelect(null, search.trim())}
+            style={{ fontWeight: 600, color: 'var(--primary)' }}
+          >
+            <span className={styles.pickerName}>➕ Extern: "{search.trim()}" übernehmen</span>
+          </button>
+        </div>
+      )}
       {yes.length > 0 && (
         <div className={styles.pickerGroup}>
           <div className={styles.pickerGroupLabel}>✅ Verfügbar ({yes.length})</div>
@@ -198,7 +211,8 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
           id: r.id,
           assignmentLabel: r.assignmentLabel,
           employeeId: r.employeeId,
-          employeeName: r.user?.name || null,
+          employeeName: r.user?.name || r.customName || null,
+          customName: r.customName || null,
           startTime: r.startTime || "",
           endTime: r.endTime || "",
           note: r.note || "",
@@ -293,6 +307,7 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
           rows: rows.map((r, i) => ({
             assignmentLabel: r.assignmentLabel,
             employeeId: r.employeeId || null,
+            customName: r.employeeId ? null : (r.employeeName || null),
             startTime: r.startTime || null,
             endTime: r.endTime || null,
             note: r.note || null,
@@ -397,7 +412,7 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
     setPickerRect(rect)
   }
 
-  const handlePickerSelect = (empId: string, empName: string) => {
+  const handlePickerSelect = (empId: string | null, empName: string) => {
     if (pickerRowId) {
       setRows(prev => prev.map(r => r.id === pickerRowId ? { ...r, employeeId: empId || null, employeeName: empName || null } : r))
     }

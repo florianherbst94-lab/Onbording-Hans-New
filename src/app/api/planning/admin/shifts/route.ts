@@ -91,6 +91,7 @@ export async function POST(req: Request) {
               startTime: r.startTime || null,
               endTime: r.endTime || null,
               note: r.note || null,
+              customName: r.customName || null,
             }))
           })
         }
@@ -110,6 +111,7 @@ export async function POST(req: Request) {
                 startTime: r.startTime || null,
                 endTime: r.endTime || null,
                 note: r.note || null,
+              customName: r.customName || null,
               }))
             }
           }
