@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { jsPDF } from "jspdf"
-import autoTable from "jspdf-autotable"
 import { Button } from "@/components/ui/Button"
 import styles from "./admin-timesheet.module.css"
 import { calculateTotalHours } from "@/lib/timesheet-utils"
@@ -152,11 +150,14 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
   }
 
   
-  const exportPDF = () => {
+  const exportPDF = async () => {
     if (!filterMonth) {
       alert("Bitte wähle zuerst einen Monat aus dem Filter aus, um den Monatsabschluss zu exportieren.");
       return;
     }
+
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
 
     const doc = new jsPDF({ orientation: "landscape" });
 
