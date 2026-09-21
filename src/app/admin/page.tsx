@@ -3,6 +3,7 @@ import Link from "next/link"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { revalidatePath } from "next/cache"
+import { PasswordResetButton } from "@/components/admin/PasswordResetButton"
 import { LuExternalLink, LuUser, LuFolderOpen } from "react-icons/lu"
 import styles from "./page.module.css"
 
@@ -175,19 +176,8 @@ export default async function AdminDashboard() {
                       </td>
                       <td style={{ textAlign: "right" }}>
                         <div className={styles.tableActions}>
-                          <form
-                            action={resetProgress.bind(null, emp.id)}
-                            style={{ display: "inline" }}
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              type="submit"
-                              className={styles.resetBtn}
-                            >
-                              Reset
-                            </Button>
-                          </form>
+                          <PasswordResetButton userId={emp.id} employeeName={emp.name || ""} />
+                          <form action={resetProgress.bind(null, emp.id)} style={{ display: "inline" }}><Button variant="ghost" size="sm" type="submit" className={styles.resetBtn}>Prog. Reset</Button></form>
                           <form
                             action={archiveEmployee.bind(null, emp.id)}
                             style={{ display: "inline" }}
