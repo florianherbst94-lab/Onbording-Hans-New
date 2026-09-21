@@ -26,6 +26,16 @@ const getEndDate = (start?: Date | null | string) => {
   return e.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
+
+const getJobTitle = (role?: string | null) => {
+  switch (role) {
+    case 'ORDNER': return 'Ordner'
+    case 'REINIGUNGSKRAFT': return 'Reinigungskraft'
+    case 'HAUSMEISTER': return 'Hausmeister'
+    default: return 'Servicekraft / Barkraft'
+  }
+}
+
 export default async function ContractPage(props: { params: Promise<{ userId: string }> }) {
   const params = await props.params;
   const session = await auth()
@@ -87,7 +97,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { startDate: true, hourlyWage: true }
+    select: { startDate: true, hourlyWage: true, jobRole: true, contractType: true }
   })
 
   return (
@@ -276,7 +286,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.png" alt="Hans im Club Logo" />
           </div>
-          <h2>Arbeitsvertrag für eine geringfügige Beschäftigung (Minijob)</h2>
+          <h2>{user?.contractType === "MINIJOB" ? "Arbeitsvertrag für eine geringfügige Beschäftigung (Minijob)" : user?.contractType === "PART_TIME" ? "Arbeitsvertrag (Teilzeit)" : "Arbeitsvertrag (Vollzeit)"}</h2>
           <p>
             zwischen<br/>
             HS Event GmbH, Schützenplatz 14, 01067 Dresden<br/>
@@ -297,20 +307,23 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
           Die ersten 3 Monate gelten als Probezeit. Während dieser Zeit kann das Arbeitsverhältnis mit einer Frist von 2 Wochen gekündigt werden.</p>
 
           <h3>§3 Tätigkeit und Arbeitsort</h3>
-          <p>Der Arbeitnehmer wird als Servicekraft / Barkraft im Betrieb<br/>
+          <p>Der Arbeitnehmer wird als {getJobTitle(user?.jobRole)} im Betrieb<br/>
           „Hans im Club“, Wallstraße 11, 01067 Dresden eingesetzt.<br/>
           Der Arbeitgeber ist berechtigt, dem Arbeitnehmer andere gleichwertige und zumutbare Tätigkeiten zuzuweisen.</p>
 
           <h3>§4 Vergütung</h3>
           <p>Der Arbeitnehmer erhält einen Stundenlohn in Höhe von {(user?.hourlyWage || 13.90).toFixed(2).replace('.', ',')} € brutto.<br/>
-          Die Beschäftigung erfolgt im Rahmen eines geringfügigen Beschäftigungsverhältnisses gemäß § 8 SGB IV.<br/>
-          Das regelmäßige monatliche Arbeitsentgelt darf die gesetzliche Geringfügigkeitsgrenze (derzeit 603 €) nicht überschreiten.<br/>
+          {user?.contractType === "MINIJOB" ? (
+            <>Die Beschäftigung erfolgt im Rahmen eines geringfügigen Beschäftigungsverhältnisses gemäß § 8 SGB IV.<br/>Das regelmäßige monatliche Arbeitsentgelt darf die gesetzliche Geringfügigkeitsgrenze (derzeit 603 €) nicht überschreiten.<br/></>
+          ) : (
+            <>Die Beschäftigung erfolgt im Rahmen eines sozialversicherungspflichtigen Arbeitsverhältnisses.<br/></>
+          )}
           Die Auszahlung erfolgt jeweils zum 15. des Folgemonats auf ein vom Arbeitnehmer benanntes Konto: IBAN {personalData?.iban || '_______________________'}.<br/>
-          Der Arbeitgeber führt die pauschalen Abgaben zur Sozialversicherung an die Minijob-Zentrale ab.</p>
+          {user?.contractType === "MINIJOB" && "Der Arbeitgeber führt die pauschalen Abgaben zur Sozialversicherung an die Minijob-Zentrale ab."}</p>
 
           <h3>§5 Arbeitszeit (Arbeit auf Abruf)</h3>
           <p>Die Beschäftigung erfolgt nach Bedarf des Arbeitgebers.<br/>
-          Die monatliche Arbeitszeit beträgt maximal 43 Stunden.<br/>
+          {user?.contractType === "MINIJOB" ? "Die monatliche Arbeitszeit beträgt maximal 43 Stunden." : "Die monatliche Arbeitszeit richtet sich nach der betrieblichen Einsatzplanung und den gesetzlichen Höchstgrenzen."}<br/>
           Die Einsätze erfolgen in der Regel zu folgenden Zeiten:</p>
           <ul>
             <li>Mittwoch: 22:00 – 05:00 Uhr</li>
@@ -335,7 +348,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
           <h3>§9 Nebentätigkeit</h3>
           <p>Eine Nebentätigkeit ist dem Arbeitgeber vorher anzuzeigen und bedarf dessen Zustimmung, sofern berechtigte betriebliche Interessen betroffen sind.</p>
 
-          <h3>§10 Rentenversicherung (Minijob)</h3>
+          {user?.contractType === "MINIJOB" ? <h3>§10 Rentenversicherung (Minijob)</h3> : <h3>§10 Rentenversicherung</h3>}
           <p>Der Arbeitnehmer wird darauf hingewiesen, dass grundsätzlich Rentenversicherungspflicht besteht.<br/>
           Er kann sich auf Antrag von der Rentenversicherungspflicht befreien lassen. Der Antrag ist schriftlich gegenüber dem Arbeitgeber zu erklären.</p>
 

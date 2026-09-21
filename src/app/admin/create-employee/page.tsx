@@ -25,6 +25,15 @@ export default function CreateEmployeePage() {
                 <option value="SERVICE">Service / Bar</option>
                 <option value="ORDNER">Ordner</option>
                 <option value="REINIGUNGSKRAFT">Reinigungskraft</option>
+                <option value="HAUSMEISTER">Hausmeister</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Vertragsart</label>
+              <select name="contractType" className={styles.select} defaultValue="MINIJOB">
+                <option value="MINIJOB">Minijob (geringfügig)</option>
+                <option value="PART_TIME">Teilzeit</option>
+                <option value="FULL_TIME">Vollzeit</option>
               </select>
             </div>
             <Input label="Arbeitsbeginn" name="startDate" type="date" required />

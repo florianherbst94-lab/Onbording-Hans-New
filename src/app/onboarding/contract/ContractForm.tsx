@@ -31,13 +31,15 @@ interface ContractFormProps {
   startDate?: Date | null
   hourlyWage: number
   jobRole?: string | null
+  contractType: string
 }
 
-function ContractText({ name, addressLine, today, startDate, personalData, hourlyWage, jobRole }: { name: string, addressLine: string, today: string, startDate: string | null, personalData: PersonalData | null, hourlyWage: number, jobRole?: string | null }) {
+function ContractText({ name, addressLine, today, startDate, personalData, hourlyWage, jobRole, contractType }: { name: string, addressLine: string, today: string, startDate: string | null, personalData: PersonalData | null, hourlyWage: number, jobRole?: string | null, contractType: string }) {
   const getJobTitle = () => {
     switch (jobRole) {
       case 'ORDNER': return 'Ordner'
       case 'REINIGUNGSKRAFT': return 'Reinigungskraft'
+      case 'HAUSMEISTER': return 'Hausmeister'
       default: return 'Servicekraft / Barkraft'
     }
   }
@@ -48,7 +50,7 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.png" alt="Hans im Club Logo" />
       </div>
-      <h2>Arbeitsvertrag für eine geringfügige Beschäftigung (Minijob)</h2>
+      <h2>{contractType === "MINIJOB" ? "Arbeitsvertrag für eine geringfügige Beschäftigung (Minijob)" : contractType === "PART_TIME" ? "Arbeitsvertrag (Teilzeit)" : "Arbeitsvertrag (Vollzeit)"}</h2>
       <p>
         zwischen<br/>
         HS Event GmbH, Schützenplatz 14, 01067 Dresden<br/>
@@ -75,14 +77,17 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
 
       <h3>§4 Vergütung</h3>
       <p>Der Arbeitnehmer erhält einen Stundenlohn in Höhe von {hourlyWage.toFixed(2).replace('.', ',')} € brutto.<br/>
-      Die Beschäftigung erfolgt im Rahmen eines geringfügigen Beschäftigungsverhältnisses gemäß § 8 SGB IV.<br/>
-      Das regelmäßige monatliche Arbeitsentgelt darf die gesetzliche Geringfügigkeitsgrenze (derzeit 603 €) nicht überschreiten.<br/>
+      {contractType === "MINIJOB" ? (
+        <>Die Beschäftigung erfolgt im Rahmen eines geringfügigen Beschäftigungsverhältnisses gemäß § 8 SGB IV.<br/>Das regelmäßige monatliche Arbeitsentgelt darf die gesetzliche Geringfügigkeitsgrenze (derzeit 603 €) nicht überschreiten.<br/></>
+      ) : (
+        <>Die Beschäftigung erfolgt im Rahmen eines sozialversicherungspflichtigen Arbeitsverhältnisses.<br/></>
+      )}
       Die Auszahlung erfolgt jeweils zum 15. des Folgemonats auf ein vom Arbeitnehmer benanntes Konto: IBAN {personalData?.iban || '_______________________'}.<br/>
-      Der Arbeitgeber führt die pauschalen Abgaben zur Sozialversicherung an die Minijob-Zentrale ab.</p>
+      {contractType === "MINIJOB" && "Der Arbeitgeber führt die pauschalen Abgaben zur Sozialversicherung an die Minijob-Zentrale ab."}</p>
 
       <h3>§5 Arbeitszeit (Arbeit auf Abruf)</h3>
       <p>Die Beschäftigung erfolgt nach Bedarf des Arbeitgebers.<br/>
-      Die monatliche Arbeitszeit beträgt maximal 43 Stunden.<br/>
+      {contractType === "MINIJOB" ? "Die monatliche Arbeitszeit beträgt maximal 43 Stunden." : "Die monatliche Arbeitszeit richtet sich nach der betrieblichen Einsatzplanung und den gesetzlichen Höchstgrenzen."}<br/>
       Die Einsätze erfolgen in der Regel zu folgenden Zeiten:</p>
       <ul>
         <li>Mittwoch: 22:00 – 05:00 Uhr</li>
@@ -107,7 +112,7 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
       <h3>§9 Nebentätigkeit</h3>
       <p>Eine Nebentätigkeit ist dem Arbeitgeber vorher anzuzeigen und bedarf dessen Zustimmung, sofern berechtigte betriebliche Interessen betroffen sind.</p>
 
-      <h3>§10 Rentenversicherung (Minijob)</h3>
+      {contractType === "MINIJOB" ? <h3>§10 Rentenversicherung (Minijob)</h3> : <h3>§10 Rentenversicherung</h3>}
       <p>Der Arbeitnehmer wird darauf hingewiesen, dass grundsätzlich Rentenversicherungspflicht besteht.<br/>
       Er kann sich auf Antrag von der Rentenversicherungspflicht befreien lassen. Der Antrag ist schriftlich gegenüber dem Arbeitgeber zu erklären.</p>
 
@@ -146,7 +151,7 @@ function ContractText({ name, addressLine, today, startDate, personalData, hourl
   )
 }
 
-export function ContractForm({ personalData, startDate, hourlyWage, jobRole }: ContractFormProps) {
+export function ContractForm({ personalData, startDate, hourlyWage, jobRole, contractType = "MINIJOB" }: ContractFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [signedUrl, setSignedUrl] = useState<string | null>(null)
@@ -275,7 +280,7 @@ export function ContractForm({ personalData, startDate, hourlyWage, jobRole }: C
 
         <ZoomableDocument id="contract-preview">
           <div style={{ padding: '4rem 3.5rem' }}>
-          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} />
+          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} contractType={contractType} />
           
           <div className={styles.signatureRow}>
              <div className={styles.sigContainer}>
@@ -304,7 +309,7 @@ export function ContractForm({ personalData, startDate, hourlyWage, jobRole }: C
       
       <ZoomableDocument id="contract-preview">
         <div style={{ padding: '4rem 3.5rem' }}>
-          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} />
+          <ContractText name={name} addressLine={addressLine} today={today} startDate={startDateStr} personalData={personalData} hourlyWage={hourlyWage} jobRole={jobRole} contractType={contractType} />
         </div>
       </ZoomableDocument>
 

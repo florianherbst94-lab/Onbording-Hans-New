@@ -43,6 +43,7 @@ model User {
   password         String?
   role             String            @default("EMPLOYEE")
   jobRole          String?           // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"
+  contractType     String            @default("MINIJOB") // e.g., "MINIJOB", "PART_TIME", "FULL_TIME"
   isArchived       Boolean           @default(false)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt

@@ -125,6 +125,7 @@ export async function inviteEmployee(formData: FormData) {
   const startDateRaw = formData.get("startDate") as string
   const hourlyWage = parseFloat(formData.get("hourlyWage") as string) || 13.90
   const jobRole = formData.get("jobRole") as string || "SERVICE"
+  const contractType = formData.get("contractType") as string || "MINIJOB"
   
   if (!email || !name) return
 
