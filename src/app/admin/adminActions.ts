@@ -76,11 +76,15 @@ export async function sendDocumentsToAdvisor(
   }
 }
 
-export async function updateEmployeeWage(userId: string, wage: number) {
+export async function updateEmployeeWage(userId: string, wage: number, contractType?: string, jobRole?: string) {
   try {
     await prisma.user.update({
       where: { id: userId },
-      data: { hourlyWage: wage }
+      data: { 
+        hourlyWage: wage,
+        ...(contractType ? { contractType } : {}),
+        ...(jobRole ? { jobRole } : {})
+      }
     })
     return { success: true }
   } catch (error: any) {

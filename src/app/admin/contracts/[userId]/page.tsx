@@ -213,8 +213,8 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
       </div>
 
       <div className={styles.wageEditorArea}>
-        <h2>Vergütung anpassen</h2>
-        <UserWageEditor userId={userId} currentWage={user?.hourlyWage || 13.90} />
+        <h2>Vertragsdaten anpassen</h2>
+        <UserWageEditor userId={userId} currentWage={user?.hourlyWage || 13.90} currentContractType={user?.contractType || "MINIJOB"} currentJobRole={user?.jobRole || "SERVICE"} />
       </div>
 
       <div className={styles.contractHeader}>
