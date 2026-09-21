@@ -1,6 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import { jsPDF } from "jspdf"
+import autoTable from "jspdf-autotable"
 import { Button } from "@/components/ui/Button"
 import styles from "./admin-timesheet.module.css"
 import { calculateTotalHours } from "@/lib/timesheet-utils"
@@ -148,6 +150,156 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
       setLoadingId(null)
     }
   }
+
+  
+  const exportPDF = () => {
+    if (!filterMonth) {
+      alert("Bitte wähle zuerst einen Monat aus dem Filter aus, um den Monatsabschluss zu exportieren.");
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: "landscape" });
+
+    const [year, monthNum] = filterMonth.split("-");
+    const monthNames = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
+    const monthName = monthNames[parseInt(monthNum, 10) - 1];
+
+    doc.setFontSize(10);
+    doc.text("2023-C-19463", 14, 15);
+    doc.text("HS Event GmbH\nWallstraße 11\n01067 Dresden", 45, 15);
+    doc.text(`Monatsabschluss gesamt\n${monthName} ${year}`, 280, 15, { align: "right" });
+
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    doc.text("Monatsabschluss", 14, 35);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text("Zeitangaben in Industriestunden", 280, 35, { align: "right" });
+
+    doc.setLineWidth(0.2);
+    doc.line(14, 37, 280, 37);
+
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text("Sonstige Nettobe- und abzüge finden Sie in einem gesonderten Dokument.", 14, 42);
+
+    const userMap = new Map();
+    users.forEach(u => {
+      userMap.set(u.id, {
+        name: u.name || u.email || "Unbekannt",
+        bv: "MI",
+        gehalt: "",
+        stdLohn: 13.90,
+        summeStunden: 0,
+        auszStd: 0
+      });
+    });
+
+    filteredTimesheets.forEach(t => {
+      if (!userMap.has(t.userId)) {
+         userMap.set(t.userId, { name: t.user?.name || t.user?.email || "Unbekannt", bv: "MI", gehalt: "", stdLohn: t.hourlyWage || 13.90, summeStunden: 0, auszStd: 0 });
+      }
+      const uData = userMap.get(t.userId);
+      uData.summeStunden += t.totalHours;
+      uData.auszStd += t.totalHours;
+      if (t.hourlyWage) uData.stdLohn = t.hourlyWage;
+    });
+
+    const activeUsers = Array.from(userMap.values())
+      .filter(u => u.summeStunden > 0)
+      .sort((a, b) => a.name.localeCompare(b.name, 'de-DE'));
+
+    const tableData = activeUsers.map(u => [
+      u.name,
+      u.bv,
+      u.gehalt,
+      u.stdLohn.toFixed(2).replace(".", ","),
+      u.summeStunden.toFixed(2).replace(".", ","),
+      u.summeStunden.toFixed(2).replace(".", ","),
+      u.auszStd.toFixed(2).replace(".", ","),
+      "", "", "", 
+      u.auszStd.toFixed(2).replace(".", ","),
+      "", "", "", "", ""
+    ]);
+
+    const totalStunden = activeUsers.reduce((sum, u) => sum + u.summeStunden, 0);
+    const totalAusz = activeUsers.reduce((sum, u) => sum + u.auszStd, 0);
+
+    tableData.push([
+      "", "", "", "",
+      totalStunden.toFixed(2).replace(".", ","),
+      totalStunden.toFixed(2).replace(".", ","),
+      totalAusz.toFixed(2).replace(".", ","),
+      "", "", "",
+      totalAusz.toFixed(2).replace(".", ","),
+      "", "", "", "", ""
+    ]);
+
+    autoTable(doc, {
+      startY: 48,
+      head: [
+        [
+          { content: "Arbeitnehmer", rowSpan: 2, styles: { valign: "bottom" } },
+          { content: "BV", rowSpan: 2, styles: { valign: "bottom" } },
+          { content: "Gehalt\n(€)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Std.lohn\n(€)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Summe Stunden\n(Std.)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Summe\nAushilfsstd.\n(Std.)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Ausz. Std.\n(Std.)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Summe Urlaub", colSpan: 2, styles: { halign: "center" } },
+          { content: "Summe Krank", colSpan: 2, styles: { halign: "center" } },
+          { content: "Abwesenheiten", colSpan: 2, styles: { halign: "center" } },
+          { content: "Gesamt Ausz.\nStd. inkl. Abw.\n(Std.)", rowSpan: 2, styles: { valign: "bottom", halign: "right" } },
+          { content: "Zeitkonto", colSpan: 5, styles: { halign: "center" } }
+        ],
+        [
+          { content: "(Tage)", styles: { halign: "right" } }, { content: "(Std.)", styles: { halign: "right" } },
+          { content: "(Tage)", styles: { halign: "right" } }, { content: "(Std.)", styles: { halign: "right" } },
+          { content: "(Tage)", styles: { halign: "right" } }, { content: "(Std.)", styles: { halign: "right" } },
+          { content: "Übertrag\nVormonat\n(Std.)", styles: { halign: "right", valign: "bottom" } },
+          { content: "Übertrag\nMonat\n(Std.)", styles: { halign: "right", valign: "bottom" } },
+          { content: "ausbez. Überstd.\nohne Zuschlag\n(Std.)", styles: { halign: "right", valign: "bottom" } },
+          { content: "ausbez. Überstd. mit\nZuschlag\n(Std.)", styles: { halign: "right", valign: "bottom" } },
+          { content: "Saldo\n\n(Std.)", styles: { halign: "right", valign: "bottom" } }
+        ]
+      ],
+      body: tableData,
+      theme: 'grid',
+      styles: { fontSize: 7, textColor: 40, lineColor: [210, 210, 210], lineWidth: 0.1, cellPadding: 1.5 },
+      headStyles: { fillColor: [255, 255, 255], textColor: 80, fontSize: 6, fontStyle: 'normal', cellPadding: 1 },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        2: { halign: 'right' },
+        3: { halign: 'right' },
+        4: { halign: 'right' },
+        5: { halign: 'right' },
+        6: { halign: 'right' },
+        7: { halign: 'right' },
+        8: { halign: 'right' },
+        9: { halign: 'right' },
+        10: { halign: 'right' },
+        11: { halign: 'right' },
+        12: { halign: 'right' },
+        13: { halign: 'right' },
+        14: { halign: 'right' },
+        15: { halign: 'right' },
+        16: { halign: 'right' }
+      },
+      didParseCell: (data) => {
+        // add borders for some cols if needed, or leave plain as in screenshot
+      },
+      didDrawPage: (data) => {
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`${new Date().toLocaleDateString("de-DE")}  ${new Date().toLocaleTimeString("de-DE", {hour: '2-digit', minute:'2-digit'})} Uhr`, 14, doc.internal.pageSize.height - 10);
+        doc.text(`Seite ${data.pageNumber} / ${(doc as any).internal.getNumberOfPages()}`, 280, doc.internal.pageSize.height - 10, { align: "right" });
+      }
+    });
+
+    doc.save(`Monatsabschluss_${monthName}_${year}.pdf`);
+  }
+
 
   const exportCSV = () => {
     const header = [
@@ -323,7 +475,10 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
           <h2 className={styles.title}>Zeiterfassung - Verwaltung</h2>
           <p className={styles.subtitle}>Prüfe, verwalte und exportiere Arbeitszeiten.</p>
         </div>
-        <Button onClick={exportCSV}>CSV Export</Button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={exportCSV} variant="outline">CSV Export</Button>
+          <Button onClick={exportPDF}>Monatsabschluss (PDF)</Button>
+        </div>
       </div>
 
       <div className={styles.tabs}>

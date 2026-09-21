@@ -70,7 +70,15 @@ export default async function AdminTimesheetPage() {
   }))
 
   // Serialize dates for Client Component
-  const safeTimesheets = timesheets.map(t => ({
+  const safeTimesheets = timesheets.filter(t => {
+    if (t.user) {
+      const nameLower = (t.user.name || "").toLowerCase();
+      const emailLower = (t.user.email || "").toLowerCase();
+      if (nameLower.includes("admin") || nameLower.includes("administrator")) return false;
+      if (emailLower.includes("admin") || emailLower.includes("administrator")) return false;
+    }
+    return true;
+  }).map(t => ({
     ...t,
     createdAt: t.createdAt.toISOString(),
     updatedAt: t.updatedAt.toISOString(),
