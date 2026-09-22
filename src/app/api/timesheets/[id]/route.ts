@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/auth"
+import { recalculateTimeAccount } from "@/lib/timeAccountService"
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -10,7 +11,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
   try {
     const body = await req.json()
-    const { date, startTime, endTime, breakMinutes, totalHours, status, note } = body
+    const { date, startTime, endTime, breakMinutes, totalHours, status, note, absenceType } = body
     const { id } = await params
     
     const existing = await prisma.timesheet.findUnique({ where: { id } })
@@ -43,6 +44,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       ...(totalHours !== undefined && { totalHours: Number(totalHours) }),
       ...(note !== undefined && { note }),
       ...(status && { status }),
+      ...(absenceType && { absenceType }),
     }
 
     if (status && status !== existing.status) {
@@ -56,6 +58,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       where: { id },
       data: dataToUpdate,
     })
+
+
+    // Recalculate time account if status changed to or from APPROVED, or if it is APPROVED and details changed
+    if (existing.status === "APPROVED" || status === "APPROVED") {
+      const year = parseInt(updated.date.split('-')[0])
+      const month = parseInt(updated.date.split('-')[1])
+      try {
+        await recalculateTimeAccount(existing.userId, year, month)
+      } catch (e) {
+        console.error("Time account recalculation error:", e)
+      }
+    }
 
     return NextResponse.json(updated)
   } catch (error) {

@@ -7,6 +7,8 @@ import TimesheetForm from "./TimesheetForm"
 import styles from "./timesheet.module.css"
 
 interface Props {
+  timeAccount?: any
+  timeTrackingType?: string
   initialTimesheets: TimesheetEntry[]
 }
 
@@ -17,7 +19,7 @@ const STATUS_MAP = {
   REJECTED: { label: "Abgelehnt", color: "#d93025", bg: "rgba(217, 48, 37, 0.1)" },
 }
 
-export default function TimesheetClient({ initialTimesheets }: Props) {
+export default function TimesheetClient({ initialTimesheets, timeAccount, timeTrackingType }: Props) {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>(initialTimesheets)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)

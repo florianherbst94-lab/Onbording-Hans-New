@@ -15,6 +15,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
   const [startTime, setStartTime] = useState("")
   const [endTime, setEndTime] = useState("")
   const [breakMinutes, setBreakMinutes] = useState(0)
+  const [absenceType, setAbsenceType] = useState("NONE")
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -26,7 +27,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
 
   const handleSubmit = async (e: FormEvent, status: "DRAFT" | "SUBMITTED") => {
     e.preventDefault()
-    if (!startTime || !endTime) {
+    if (absenceType === "NONE" && (!startTime || !endTime)) {
       setError("Start- und Endzeit sind erforderlich.")
       return
     }
@@ -44,6 +45,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
           endTime,
           breakMinutes,
           totalHours,
+          absenceType,
           note,
           status,
         }),

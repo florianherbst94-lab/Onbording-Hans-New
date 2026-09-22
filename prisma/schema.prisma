@@ -35,29 +35,35 @@ model Session {
 }
 
 model User {
-  id               String            @id @default(cuid())
-  name             String?
-  email            String?           @unique
-  emailVerified    DateTime?
-  image            String?
-  password         String?
-  role             String            @default("EMPLOYEE")
-  jobRole          String?           // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"
-  contractType     String            @default("MINIJOB") // e.g., "MINIJOB", "PART_TIME", "FULL_TIME"
-  isArchived       Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  startDate        DateTime?
-  hourlyWage       Float             @default(13.90)
-  accounts         Account[]
-  documents        Document[]
-  onboardingStatus OnboardingStatus?
-  payslips         Payslip[]
-  sessions              Session[]
-  stepProgresses        StepProgress[]
-  timesheets            Timesheet[]
-  availabilityResponses AvailabilityResponse[]
-  staffPlanRows         StaffPlanRow[]
+  id                     String                  @id @default(cuid())
+  name                   String?
+  email                  String?                 @unique
+  emailVerified          DateTime?
+  image                  String?
+  password               String?
+  role                   String                  @default("EMPLOYEE")
+  jobRole                String? // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"
+  contractType           String                  @default("MINIJOB") // e.g., "MINIJOB", "PART_TIME", "FULL_TIME"
+  isArchived             Boolean                 @default(false)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  startDate              DateTime?
+  hourlyWage             Float                   @default(13.90)
+  timeTrackingType       String                  @default("SIMPLE") // SIMPLE, TIME_ACCOUNT
+  weeklyHours            Float?
+  timeAccountStartDate   DateTime?
+  accounts               Account[]
+  documents              Document[]
+  onboardingStatus       OnboardingStatus?
+  payslips               Payslip[]
+  sessions               Session[]
+  stepProgresses         StepProgress[]
+  timesheets             Timesheet[]
+  availabilityResponses  AvailabilityResponse[]
+  staffPlanRows          StaffPlanRow[]
+  workSchedules          EmployeeWorkSchedule[]
+  timeAccountMonths      TimeAccountMonth[]
+  timeAccountAdjustments TimeAccountAdjustment[]
 }
 
 model Payslip {
@@ -113,15 +119,16 @@ model Document {
 model Timesheet {
   id           String   @id @default(cuid())
   userId       String
-  date         String   // E.g., 'YYYY-MM-DD'
-  startTime    String   // E.g., '08:00'
-  endTime      String   // E.g., '16:00'
+  date         String // E.g., 'YYYY-MM-DD'
+  startTime    String // E.g., '08:00'
+  endTime      String // E.g., '16:00'
   breakMinutes Int      @default(0)
   totalHours   Float
   status       String   @default("DRAFT") // DRAFT, SUBMITTED, APPROVED, REJECTED
+  absenceType  String   @default("NONE") // NONE, VACATION, SICK, HOLIDAY, OTHER
   note         String?
-  hourlyWage   Float?   // Fixed wage at submission time
-  approvedBy   String?  // Name or ID of admin
+  hourlyWage   Float? // Fixed wage at submission time
+  approvedBy   String? // Name or ID of admin
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -154,22 +161,21 @@ model AvailabilityRequest {
 }
 
 model AvailabilityDay {
-  id          String                 @id @default(cuid())
-  requestId   String
-  date        DateTime
-  eventName   String?
-  note        String?
-  request     AvailabilityRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  responses   AvailabilityResponse[]
-  staffPlan   StaffPlanDay?
-
+  id        String                 @id @default(cuid())
+  requestId String
+  date      DateTime
+  eventName String?
+  note      String?
+  request   AvailabilityRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  responses AvailabilityResponse[]
+  staffPlan StaffPlanDay?
 }
 
 model AvailabilityResponse {
   id         String          @id @default(cuid())
   employeeId String
   dayId      String
-  status     String          // YES, NO, MAYBE
+  status     String // YES, NO, MAYBE
   comment    String?
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
@@ -180,37 +186,37 @@ model AvailabilityResponse {
 }
 
 model StaffPlanDay {
-  id          String                @id @default(cuid())
-  dayId       String?               @unique
-  date        DateTime
-  eventName   String?
-  note        String?
-  status      String                @default("DRAFT") // DRAFT, FINAL
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  day         AvailabilityDay?      @relation(fields: [dayId], references: [id], onDelete: SetNull)
-  rows        StaffPlanRow[]
+  id        String           @id @default(cuid())
+  dayId     String?          @unique
+  date      DateTime
+  eventName String?
+  note      String?
+  status    String           @default("DRAFT") // DRAFT, FINAL
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  day       AvailabilityDay? @relation(fields: [dayId], references: [id], onDelete: SetNull)
+  rows      StaffPlanRow[]
 }
 
 model StaffPlanRow {
-  id              String        @id @default(cuid())
+  id              String       @id @default(cuid())
   planId          String
-  sortOrder       Int           @default(0)
-  assignmentLabel String        // z.B. "Beton Bar (Bar-Chef)", "Einlass", "CvD"
-  employeeId      String?       // null = unbesetzte Position
-  customName      String?       // Für externe Mitarbeiter oder manuelle Eingaben
-  startTime       String?       // z.B. "22:00"
-  endTime         String?       // z.B. "06:00"
+  sortOrder       Int          @default(0)
+  assignmentLabel String // z.B. "Beton Bar (Bar-Chef)", "Einlass", "CvD"
+  employeeId      String? // null = unbesetzte Position
+  customName      String? // Für externe Mitarbeiter oder manuelle Eingaben
+  startTime       String? // z.B. "22:00"
+  endTime         String? // z.B. "06:00"
   note            String?
-  plan            StaffPlanDay  @relation(fields: [planId], references: [id], onDelete: Cascade)
-  user            User?         @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  plan            StaffPlanDay @relation(fields: [planId], references: [id], onDelete: Cascade)
+  user            User?        @relation(fields: [employeeId], references: [id], onDelete: SetNull)
 }
 
 model ShiftTemplate {
-  id        String              @id @default(cuid())
-  name      String              @unique
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id        String             @id @default(cuid())
+  name      String             @unique
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
   rows      ShiftTemplateRow[]
 }
 
@@ -221,4 +227,41 @@ model ShiftTemplateRow {
   assignmentLabel  String
   defaultStartTime String?
   template         ShiftTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeWorkSchedule {
+  id            String  @id @default(cuid())
+  userId        String
+  weekday       Int // 1=Monday, 2=Tuesday, ..., 7=Sunday
+  targetMinutes Int
+  enabled       Boolean @default(true)
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekday])
+}
+
+model TimeAccountMonth {
+  id                       String   @id @default(cuid())
+  userId                   String
+  year                     Int
+  month                    Int
+  openingBalanceMinutes    Int
+  targetMinutes            Int
+  actualMinutes            Int
+  monthlyDifferenceMinutes Int
+  closingBalanceMinutes    Int
+  updatedAt                DateTime @updatedAt
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, year, month])
+}
+
+model TimeAccountAdjustment {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  minutes   Int
+  reason    String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -50,9 +50,9 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { date, startTime, endTime, breakMinutes, totalHours, note, status } = body
+    const { date, startTime, endTime, breakMinutes, totalHours, note, status, absenceType } = body
 
-    if (!date || !startTime || !endTime || totalHours === undefined) {
+    if (!date || (!absenceType || absenceType === "NONE" ? (!startTime || !endTime || totalHours === undefined) : false)) {
       return NextResponse.json({ error: "Fehlende Pflichtfelder" }, { status: 400 })
     }
 
@@ -66,8 +66,9 @@ export async function POST(req: Request) {
       data: {
         userId: session.user.id,
         date,
-        startTime,
-        endTime,
+        startTime: absenceType !== "NONE" ? "00:00" : startTime,
+        endTime: absenceType !== "NONE" ? "00:00" : endTime,
+        absenceType: absenceType || "NONE",
         breakMinutes: Number(breakMinutes) || 0,
         totalHours: Number(totalHours),
         note,

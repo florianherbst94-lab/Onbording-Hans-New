@@ -8,6 +8,7 @@ import { FireSafetyPreview } from "@/components/FireSafetyPreview"
 import { Button } from "@/components/ui/Button"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
+import { TimeAccountEditor } from "@/components/admin/TimeAccountEditor"
 import { deleteDocument } from "../../adminActions"
 import { deletePayslip } from "../../payslips/actions"
 import DeleteButton from "@/components/admin/DeleteButton"
@@ -97,7 +98,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { startDate: true, hourlyWage: true, jobRole: true, contractType: true }
+    include: { workSchedules: true }
   })
 
   return (
@@ -215,6 +216,15 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
       <div className={styles.wageEditorArea}>
         <h2>Vertragsdaten anpassen</h2>
         <UserWageEditor userId={userId} currentWage={user?.hourlyWage || 13.90} currentContractType={user?.contractType || "MINIJOB"} currentJobRole={user?.jobRole || "SERVICE"} />
+        {user && (
+          <TimeAccountEditor 
+            userId={userId} 
+            initialTimeTrackingType={user.timeTrackingType} 
+            initialWeeklyHours={user.weeklyHours}
+            initialStartDate={user.timeAccountStartDate ? user.timeAccountStartDate.toISOString().split('T')[0] : null}
+            workSchedules={user.workSchedules || []}
+          />
+        )}
       </div>
 
       <div className={styles.contractHeader}>

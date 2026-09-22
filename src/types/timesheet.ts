@@ -9,6 +9,7 @@ export interface TimesheetEntry {
   breakMinutes: number
   totalHours: number
   status: TimesheetStatus
+  absenceType?: string
   note?: string | null
   hourlyWage?: number | null
   approvedBy?: string | null

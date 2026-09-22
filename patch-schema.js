@@ -2,13 +2,13 @@ const fs = require('fs');
 const file = 'prisma/schema.prisma';
 let content = fs.readFileSync(file, 'utf8');
 
-// Add contractType
-if (!content.includes('contractType')) {
+if (!content.includes('customName')) {
   content = content.replace(
-    'jobRole          String?           // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"',
-    'jobRole          String?           // e.g., "ORDNER", "REINIGUNGSKRAFT", "SERVICE"\n  contractType     String            @default("MINIJOB") // e.g., "MINIJOB", "PART_TIME", "FULL_TIME"'
+    'employeeId      String?       // null = unbesetzte Position',
+    'employeeId      String?       // null = unbesetzte Position\n  customName      String?       // Für externe Mitarbeiter oder manuelle Eingaben'
   );
+  fs.writeFileSync(file, content);
+  console.log("Patched schema");
+} else {
+  console.log("Already patched");
 }
-
-fs.writeFileSync(file, content);
-console.log("Patched schema successfully");
