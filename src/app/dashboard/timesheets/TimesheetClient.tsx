@@ -114,7 +114,7 @@ export default function TimesheetClient({ initialTimesheets, timeAccount, timeTr
                 <div key={ts.id} className={styles.timesheetCard}>
                   <div className={styles.tsMain}>
                     <div className={styles.tsDate}>
-                      {isMounted ? new Date(ts.date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
+                      {isMounted && ts.date ? new Date(ts.date).toLocaleDateString("de-DE", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}
                     </div>
                     <div className={styles.tsTimes}>
                       {ts.startTime} - {ts.endTime} Uhr ({ts.breakMinutes} Min Pause)
