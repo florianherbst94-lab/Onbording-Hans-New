@@ -192,7 +192,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                 <Card className={styles.earningsCard}>
                   <div className={styles.earningsLabel}>Verdienst diesen Monat</div>
                   <div className={styles.earningsValue}>
-                    {summary?.currentMonthEarnings.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                    {isMounted ? summary?.currentMonthEarnings.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '...'}
                   </div>
                   <div className={styles.earningsSub}>Basierend auf deinen genehmigten/eingereichten Zeiten</div>
                 </Card>

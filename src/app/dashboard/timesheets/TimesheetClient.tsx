@@ -93,11 +93,11 @@ export default function TimesheetClient({ initialTimesheets, timeAccount, timeTr
           <div className={styles.monthSummary}>
             <div className={styles.summaryItem}>
               <span className={styles.summaryLabel}>Stunden (diesen Monat)</span>
-              <span className={styles.summaryValue}>{monthlyHours.toFixed(2)}h</span>
+              <span className={styles.summaryValue}>{isMounted ? monthlyHours.toFixed(2) : "..."}h</span>
             </div>
             <div className={styles.summaryItem}>
               <span className={styles.summaryLabel}>Verdienst (diesen Monat)</span>
-              <span className={styles.summaryValue}>{monthlyEarnings.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}</span>
+              <span className={styles.summaryValue}>{isMounted ? monthlyEarnings.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '...'}</span>
             </div>
           </div>
 
@@ -123,7 +123,7 @@ export default function TimesheetClient({ initialTimesheets, timeAccount, timeTr
                       <div className={styles.tsTotal}>{ts.totalHours} Stunden</div>
                       {ts.status === "APPROVED" && (
                         <div className={styles.tsEarnings}>
-                          Verdienst: {(ts.totalHours * (ts.hourlyWage || 13.90)).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' })}
+                          Verdienst: {isMounted ? (ts.totalHours * (ts.hourlyWage || 13.90)).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '...'}
                         </div>
                       )}
                     </div>
