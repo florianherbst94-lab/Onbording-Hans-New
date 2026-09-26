@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
 import { revalidatePath } from "next/cache"
 import { PasswordResetButton } from "@/components/admin/PasswordResetButton"
+import AdminTableRow from "./AdminTableRow"
 import { LuExternalLink, LuUser, LuFolderOpen } from "react-icons/lu"
 import styles from "./page.module.css"
 
@@ -63,9 +64,9 @@ export default async function AdminDashboard() {
 
   // Sort strictly by last name alphabetically (Nachname, A-Z)
   const employees = [...nonAdminEmployees].sort((a, b) => {
-    const lastA = getLastName(a) || a.name || a.email || ""
-    const lastB = getLastName(b) || b.name || b.email || ""
-    return lastA.localeCompare(lastB, "de-DE")
+    const nameA = a.name || a.email || "";
+    const nameB = b.name || b.email || "";
+    return nameA.localeCompare(nameB, "de-DE");
   })
 
   async function resetProgress(userId: string) {
@@ -127,10 +128,10 @@ export default async function AdminDashboard() {
                   )
                   const lName = getLastName(emp)
                   const fName = getFirstName(emp)
-                  const displayName = lName ? `${lName}, ${fName}` : emp.name || emp.email
+                  const displayName = fName && lName ? `${fName} ${lName}` : emp.name || emp.email
 
                   return (
-                    <tr key={emp.id} className={styles.tableRow}>
+                    <AdminTableRow key={emp.id} className={styles.tableRow} href={`/admin/contracts/${emp.id}`}>
                       <td>
                         <Link
                           href={`/admin/contracts/${emp.id}`}
@@ -188,7 +189,7 @@ export default async function AdminDashboard() {
                           </form>
                         </div>
                       </td>
-                    </tr>
+                    </AdminTableRow>
                   )
                 })}
                 {employees.length === 0 && (

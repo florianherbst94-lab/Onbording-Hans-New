@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/Button"
+import { LuUndo2, LuCheck, LuEye } from "react-icons/lu"
 import styles from "./BulkPayslipUpload.module.css"
 
 interface Employee {
@@ -849,7 +850,7 @@ export default function BulkPayslipUpload({
                       
                       <div className={styles.assignedActions}>
                         {item.url && (
-                          <Button variant="ghost" size="sm" onClick={() => window.open(item.url, "_blank")} className={styles.viewLink}>PDF ansehen</Button>
+                          <Button variant="ghost" size="sm" onClick={() => window.open(item.url, "_blank")} className={styles.viewLink}><LuEye style={{ marginRight: '5px' }} /> PDF ansehen</Button>
                         )}
                         <Button 
                           variant="ghost" 
@@ -858,7 +859,7 @@ export default function BulkPayslipUpload({
                           disabled={deletingPage === item.page}
                           onClick={() => handleDeleteAssigned(item)}
                         >
-                          {deletingPage === item.page ? "Löscht…" : "Zuordnung aufheben / Löschen"}
+                          {deletingPage === item.page ? "Wird rückgängig gemacht…" : <><LuUndo2 style={{ marginRight: '5px' }} /> Zuordnung rückgängig machen</>}
                         </Button>
                       </div>
                     </div>
