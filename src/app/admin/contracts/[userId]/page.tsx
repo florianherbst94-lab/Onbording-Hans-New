@@ -163,9 +163,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
               Alle für {name} bereitgestellten Abrechnungen im Überblick.
             </p>
           </div>
-          <a href="/admin/payslips">
-            <Button variant="secondary" size="sm">+ Lohnzettel verwalten / hochladen</Button>
-          </a>
+          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/admin/payslips"}>+ Lohnzettel verwalten / hochladen</Button>
         </div>
         
         <div className={styles.tableWrapper}>
@@ -190,9 +188,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      <a href={slip.url} target="_blank" rel="noopener noreferrer">
-                        <Button variant="outline" size="sm">Ansehen / Download</Button>
-                      </a>
+                      <Button variant="outline" size="sm" onClick={() => window.open(slip.url, "_blank")}>Ansehen / Download</Button>
                       <DeleteButton 
                         action={deletePayslip.bind(null, slip.id)} 
                         confirmMessage={`Lohnzettel für ${MONTH_NAMES[slip.month]} ${slip.year} wirklich löschen?`} 
@@ -456,9 +452,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                     <td>{new Date(cert.uploadedAt).toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <a href={cert.url} target="_blank" rel="noopener noreferrer">
-                          <Button variant="outline" size="sm">Ansehen / Download</Button>
-                        </a>
+                        <Button variant="outline" size="sm" onClick={() => window.open(cert.url, "_blank")}>Ansehen / Download</Button>
                         <DeleteButton 
                           action={deleteDocument.bind(null, cert.id)} 
                           confirmMessage="Dokument wirklich löschen?" 

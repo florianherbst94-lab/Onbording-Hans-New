@@ -375,11 +375,7 @@ export default function PayslipAdminDashboard({ employees, initialPayslips }: Pr
                       <div className={styles.actionsCell}>
                         {hasPayslip && payslip ? (
                           <>
-                            <a href={payslip.url} target="_blank" rel="noopener noreferrer">
-                              <Button variant="ghost" size="sm">
-                                PDF ansehen
-                              </Button>
-                            </a>
+                            <Button variant="ghost" size="sm" onClick={() => window.open(payslip.url, "_blank")}>PDF ansehen</Button>
                             <Button
                               variant="ghost"
                               size="sm"

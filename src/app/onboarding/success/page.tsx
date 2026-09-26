@@ -34,9 +34,7 @@ export default async function SuccessPage() {
             Dein Administrator wurde benachrichtigt. Du bist nun bereit für deinen Einsatz in der Diskothek.
           </p>
           <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
-            <a href="/dashboard">
-              <Button>Zum Mitarbeiterportal</Button>
-            </a>
+            <Button onClick={() => window.location.href = "/dashboard"}>Zum Mitarbeiterportal</Button>
           </div>
         </CardContent>
       </Card>

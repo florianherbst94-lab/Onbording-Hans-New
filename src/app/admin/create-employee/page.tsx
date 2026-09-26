@@ -40,9 +40,7 @@ export default function CreateEmployeePage() {
             <Input label="Stundenlohn (€)" name="hourlyWage" type="number" step="0.01" defaultValue="13.90" required />
             <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
               <Button type="submit" style={{ flex: 1 }}>Einladung senden</Button>
-              <a href="/admin" style={{ textDecoration: "none", flex: 1 }}>
-                <Button variant="secondary" type="button" style={{ width: "100%" }}>Abbrechen</Button>
-              </a>
+              <Button variant="secondary" type="button" style={{ width: "100%", flex: 1 }} onClick={() => window.location.href = "/admin"}>Abbrechen</Button>
             </div>
           </form>
         </CardContent>

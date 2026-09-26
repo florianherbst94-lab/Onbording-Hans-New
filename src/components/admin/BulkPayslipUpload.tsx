@@ -849,9 +849,7 @@ export default function BulkPayslipUpload({
                       
                       <div className={styles.assignedActions}>
                         {item.url && (
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" className={styles.viewLink}>
-                            <Button variant="ghost" size="sm">PDF ansehen</Button>
-                          </a>
+                          <Button variant="ghost" size="sm" onClick={() => window.open(item.url, "_blank")} className={styles.viewLink}>PDF ansehen</Button>
                         )}
                         <Button 
                           variant="ghost" 

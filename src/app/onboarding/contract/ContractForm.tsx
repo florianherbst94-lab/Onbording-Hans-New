@@ -264,17 +264,13 @@ export function ContractForm({ personalData, startDate, hourlyWage, jobRole, con
             <Button variant="outline" onClick={handleDownloadPdf} disabled={isGenerating}>
               {isGenerating ? "Wird erstellt..." : "Download"}
             </Button>
-            <a href="/onboarding/instructions">
-              <Button>Weiter zum nächsten Schritt</Button>
-            </a>
+            <Button onClick={() => window.location.href = "/onboarding/instructions"}>Weiter zum nächsten Schritt</Button>
           </div>
           <div className={styles.secondaryActions}>
             <Button variant="ghost" size="sm" onClick={() => setSignedUrl(null)}>
               Unterschrift ändern
             </Button>
-            <a href="/onboarding/tax-data/sign">
-              <Button variant="ghost" size="sm">Daten korrigieren / Zurück</Button>
-            </a>
+            <Button variant="ghost" size="sm" onClick={() => window.location.href = "/onboarding/tax-data/sign"}>Daten korrigieren / Zurück</Button>
           </div>
         </div>
 
@@ -316,9 +312,7 @@ export function ContractForm({ personalData, startDate, hourlyWage, jobRole, con
       <div className={styles.signatureSection}>
         <div className={styles.sectionHeader}>
           <h4>Bitte hier digital unterschreiben:</h4>
-          <a href="/onboarding/tax-data/sign">
-            <Button variant="ghost" size="sm" className={styles.backBtn}>Zurück zum Personalfragebogen</Button>
-          </a>
+          <Button variant="ghost" size="sm" className={styles.backBtn} onClick={() => window.location.href = "/onboarding/tax-data/sign"}>Zurück zum Personalfragebogen</Button>
         </div>
         {isPending ? (
           <p className={styles.loading}>Vertrag wird gespeichert...</p>

@@ -272,9 +272,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                             Bitte absolviere innerhalb von 4 Wochen nach Start die Online-Hygieneschulung (Metro).
                           </p>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', zIndex: 10, position: 'relative' }}>
-                            <a href="https://kw.my/jEM8PK/#/" target="_blank" rel="noopener noreferrer">
-                              <Button variant="outline" size="sm">Zur Schulung</Button>
-                            </a>
+                            <Button variant="outline" size="sm" onClick={() => window.open('https://kw.my/jEM8PK/#/', '_blank')}>Zur Schulung</Button>
                             <div style={{ display: 'inline-block' }}>
                               <Button 
                                 variant="primary" 
@@ -331,9 +329,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                         <span className={styles.docIcon}><LuFileText /></span>
                         <h3 className={styles.docTitle}>{doc.name}</h3>
                         <p className={styles.docInfo}>Hochgeladen am {isMounted && doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString("de-DE") : ""}</p>
-                        <a href={doc.type === "CONTRACT_SIGNED" ? "/dashboard/contract" : doc.url} target={doc.type === "CONTRACT_SIGNED" ? undefined : "_blank"} rel="noopener noreferrer">
-                          <Button fullWidth variant="outline">Anschauen / Download</Button>
-                        </a>
+                        <Button fullWidth variant="outline" onClick={() => window.open(doc.type === "CONTRACT_SIGNED" ? "/dashboard/contract" : doc.url, doc.type === "CONTRACT_SIGNED" ? "_self" : "_blank")}>Anschauen / Download</Button>
                       </Card>
                     ))
                   ) : (
@@ -350,9 +346,7 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                         <span className={styles.docIcon}><LuDollarSign /></span>
                         <h3 className={styles.docTitle}>Lohnzettel {MONTHS[slip.month - 1]} {slip.year}</h3>
                         <p className={styles.docInfo}>Bereitgestellt am {isMounted && slip.uploadedAt ? new Date(slip.uploadedAt).toLocaleDateString("de-DE") : ""}</p>
-                        <a href={slip.url} target="_blank" rel="noopener noreferrer">
-                          <Button fullWidth variant="outline">Herunterladen</Button>
-                        </a>
+                        <Button fullWidth variant="outline" onClick={() => window.open(slip.url, '_blank')}>Herunterladen</Button>
                       </Card>
                     ))
                   ) : (

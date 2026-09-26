@@ -53,9 +53,7 @@ export default async function ContractStep() {
            <div className={styles.missing}>
              <p>Du hast den Vertrag bereits erfolgreich unterschrieben!</p>
              <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
-               <a href="/onboarding/instructions">
-                 <Button>Weiter zum nächsten Schritt</Button>
-               </a>
+               <Button onClick={() => window.location.href = "/onboarding/instructions"}>Weiter zum nächsten Schritt</Button>
              </div>
            </div>
         ) : (
