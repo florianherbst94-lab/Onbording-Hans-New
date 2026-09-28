@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button"
 import { Input } from "@/components/ui/Input"
 import RequestsClient from "./RequestsClient"
 import ResponsesClient from "./ResponsesClient"
+import StatisticsClient from "./StatisticsClient"
 import dynamic from "next/dynamic"
 
 const DayPlanBuilder = dynamic(() => import("./DayPlanBuilder"), { ssr: false })
@@ -12,7 +13,7 @@ const DayPlanBuilder = dynamic(() => import("./DayPlanBuilder"), { ssr: false })
 import styles from "./planning.module.css"
 
 export default function PlanningPage() {
-  const [activeTab, setActiveTab] = useState<"REQUESTS" | "RESPONSES" | "SCHEDULER">("REQUESTS")
+  const [activeTab, setActiveTab] = useState<"REQUESTS" | "RESPONSES" | "STATISTICS" | "SCHEDULER">("REQUESTS")
   const [requests, setRequests] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -50,6 +51,12 @@ export default function PlanningPage() {
             Auswertung
           </button>
           <button 
+            className={`${styles.tab} ${activeTab === "STATISTICS" ? styles.activeTab : ""}`}
+            onClick={() => setActiveTab("STATISTICS")}
+          >
+            Statistik
+          </button>
+          <button 
             className={`${styles.tab} ${activeTab === "SCHEDULER" ? styles.activeTab : ""}`}
             onClick={() => setActiveTab("SCHEDULER")}
           >
@@ -65,6 +72,7 @@ export default function PlanningPage() {
           <>
             {activeTab === "REQUESTS" && <RequestsClient requests={requests} onRefresh={fetchRequests} />}
             {activeTab === "RESPONSES" && <ResponsesClient requests={requests} />}
+            {activeTab === "STATISTICS" && <StatisticsClient requests={requests} />}
             {activeTab === "SCHEDULER" && <DayPlanBuilder requests={requests} />}
           </>
         )}
