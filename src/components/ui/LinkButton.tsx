@@ -1,3 +1,4 @@
+"use client";
 import React, { AnchorHTMLAttributes } from 'react';
 import Link from 'next/link';
 import styles from './Button.module.css';
