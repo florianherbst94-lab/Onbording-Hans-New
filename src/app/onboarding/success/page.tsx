@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
+import { LinkButton } from "@/components/ui/LinkButton"
 import styles from "./page.module.css"
 
 export default async function SuccessPage() {
@@ -34,7 +35,7 @@ export default async function SuccessPage() {
             Dein Administrator wurde benachrichtigt. Du bist nun bereit für deinen Einsatz in der Diskothek.
           </p>
           <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'center' }}>
-            <Button onClick={() => window.location.href = "/dashboard"}>Zum Mitarbeiterportal</Button>
+            <LinkButton href="/dashboard">Zum Mitarbeiterportal</LinkButton>
           </div>
         </CardContent>
       </Card>

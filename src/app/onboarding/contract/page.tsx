@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
+import { LinkButton } from "@/components/ui/LinkButton"
 import ContractFormClient from "./ContractFormClient"
 import styles from "./page.module.css"
 
@@ -53,7 +54,7 @@ export default async function ContractStep() {
            <div className={styles.missing}>
              <p>Du hast den Vertrag bereits erfolgreich unterschrieben!</p>
              <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center' }}>
-               <Button onClick={() => window.location.href = "/onboarding/instructions"}>Weiter zum nächsten Schritt</Button>
+               <LinkButton href="/onboarding/instructions">Weiter zum nächsten Schritt</LinkButton>
              </div>
            </div>
         ) : (

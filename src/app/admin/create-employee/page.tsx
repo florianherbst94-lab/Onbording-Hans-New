@@ -1,5 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/Card"
 import { Button } from "@/components/ui/Button"
+import { LinkButton } from "@/components/ui/LinkButton"
 import { Input } from "@/components/ui/Input"
 import { inviteEmployee } from "../adminActions"
 import styles from "../page.module.css"
@@ -40,7 +41,7 @@ export default function CreateEmployeePage() {
             <Input label="Stundenlohn (€)" name="hourlyWage" type="number" step="0.01" defaultValue="13.90" required />
             <div style={{ display: "flex", gap: "1rem", marginTop: "1rem" }}>
               <Button type="submit" style={{ flex: 1 }}>Einladung senden</Button>
-              <Button variant="secondary" type="button" style={{ width: "100%", flex: 1 }} onClick={() => window.location.href = "/admin"}>Abbrechen</Button>
+              <LinkButton href="/admin" variant="secondary" style={{ width: "100%", flex: 1 }}>Abbrechen</LinkButton>
             </div>
           </form>
         </CardContent>

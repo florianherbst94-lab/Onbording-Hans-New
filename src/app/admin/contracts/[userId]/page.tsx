@@ -6,6 +6,7 @@ import { TaxFormPreview } from "@/components/TaxFormPreview"
 import { RVBefreiungPreview } from "@/components/RVBefreiungPreview"
 import { FireSafetyPreview } from "@/components/FireSafetyPreview"
 import { Button } from "@/components/ui/Button"
+import { LinkButton } from "@/components/ui/LinkButton"
 import { SendToAdvisorButtonClient as SendToAdvisorButton } from "@/components/ui/SendToAdvisorButtonClient"
 import { UserWageEditor } from "@/components/admin/UserWageEditor"
 import { TimeAccountEditor } from "@/components/admin/TimeAccountEditor"
@@ -163,7 +164,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
               Alle für {name} bereitgestellten Abrechnungen im Überblick.
             </p>
           </div>
-          <Button variant="secondary" size="sm" onClick={() => window.location.href = "/admin/payslips"}>+ Lohnzettel verwalten / hochladen</Button>
+          <LinkButton href="/admin/payslips" variant="secondary" size="sm">+ Lohnzettel verwalten / hochladen</LinkButton>
         </div>
         
         <div className={styles.tableWrapper}>
@@ -188,7 +189,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'inline-flex', gap: '8px' }}>
-                      <Button variant="outline" size="sm" onClick={() => window.open(slip.url, "_blank")}>Ansehen / Download</Button>
+                      <LinkButton href={slip.url} target="_blank" variant="outline" size="sm">Ansehen / Download</LinkButton>
                       <DeleteButton 
                         action={deletePayslip.bind(null, slip.id)} 
                         confirmMessage={`Lohnzettel für ${MONTH_NAMES[slip.month]} ${slip.year} wirklich löschen?`} 
@@ -452,7 +453,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
                     <td>{new Date(cert.uploadedAt).toLocaleDateString("de-DE", { day: '2-digit', month: '2-digit', year: 'numeric' })}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
-                        <Button variant="outline" size="sm" onClick={() => window.open(cert.url, "_blank")}>Ansehen / Download</Button>
+                        <LinkButton href={cert.url} target="_blank" variant="outline" size="sm">Ansehen / Download</LinkButton>
                         <DeleteButton 
                           action={deleteDocument.bind(null, cert.id)} 
                           confirmMessage="Dokument wirklich löschen?" 
