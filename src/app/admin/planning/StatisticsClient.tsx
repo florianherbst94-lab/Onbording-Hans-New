@@ -110,7 +110,7 @@ export default function StatisticsClient({ requests }: { requests: any[] }) {
           <p>Lade Statistiken...</p>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table className={styles.table} style={{ width: "100%", minWidth: "800px", borderCollapse: "collapse", fontSize: "0.9rem" }}>
+            <table className={styles.table} style={{ width: "100%", minWidth: "800px", borderCollapse: "collapse", fontSize: "0.9rem", color: "#0f172a" }}>
               <thead>
                 <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
                   <th style={{ padding: "0.75rem", textAlign: "left" }}>Mitarbeiter</th>
