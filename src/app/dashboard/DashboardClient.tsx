@@ -362,19 +362,30 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
           {activeTab === "shifts" && (
             <div className={styles.grid}>
               {myShifts.length > 0 ? (
-                myShifts.map((a: any) => (
+                myShifts.map((a: any) => {
+                  const label = a.assignmentLabel || "";
+                  let area = label;
+                  let role = "-";
+                  const match = label.match(/^(.*?)(?:\s*\((.*?)\))?$/);
+                  if (match) {
+                    area = match[1].trim();
+                    if (match[2]) {
+                      role = match[2].trim();
+                    }
+                  }
+                  return (
                   <Card key={a.id} className={styles.docCard}>
                     <div className={styles.shiftCard}>
                       <h3 className={styles.shiftDate}>{isMounted && a.plan.date ? new Date(a.plan.date).toLocaleDateString("de-DE", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" }) : ""}</h3>
                       <div className={styles.shiftEvent}>{a.plan.eventName || 'Veranstaltung'}</div>
                       <div className={styles.shiftDetails}>
-                        <div><span className={styles.shiftLabel}>Bereich</span><div className={styles.shiftValue}>{a.area}</div></div>
-                        <div><span className={styles.shiftLabel}>Rolle</span><div className={styles.shiftValue}>{a.role || '-'}</div></div>
+                        <div><span className={styles.shiftLabel}>Bereich</span><div className={styles.shiftValue}>{area}</div></div>
+                        <div><span className={styles.shiftLabel}>Rolle</span><div className={styles.shiftValue}>{role}</div></div>
                         <div><span className={styles.shiftLabel}>Beginn</span><div className={styles.shiftValue}>{a.startTime || '??:??'}</div></div>
                       </div>
                     </div>
                   </Card>
-                ))
+                );})
               ) : (
                 <div className={styles.emptyState}>
                   <p>Du bist aktuell in keinem veröffentlichten Einsatzplan eingeteilt.</p>
