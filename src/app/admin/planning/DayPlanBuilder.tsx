@@ -159,6 +159,7 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
   const [templateName, setTemplateName] = useState("")
   const [showTemplateSave, setShowTemplateSave] = useState(false)
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [pdfExportMode, setPdfExportMode] = useState<string>("ALL")
   const [weeklyPlans, setWeeklyPlans] = useState<any[]>([])
 
   // Load templates once
@@ -229,6 +230,20 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
   }
 
   const currentRequest = requests.find(r => r.id === selectedRequestId)
+
+  const availableWeeks = React.useMemo(() => {
+    if (!currentRequest) return []
+    const weeks = new Set<number>()
+    currentRequest.days.forEach((d: any) => {
+      const date = new Date(d.date)
+      const u = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+      u.setUTCDate(u.getUTCDate() + 4 - (u.getUTCDay() || 7))
+      const yearStart = new Date(Date.UTC(u.getUTCFullYear(),0,1))
+      const weekNo = Math.ceil((((u.getTime() - yearStart.getTime()) / 86400000) + 1)/7)
+      weeks.add(weekNo)
+    })
+    return Array.from(weeks).sort((a,b) => a-b)
+  }, [currentRequest])
   const activeDayObj = currentRequest?.days.find((d: any) => d.id === selectedDayId)
 
   /* ─── Row manipulation ─── */
@@ -349,7 +364,25 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
     try {
       // Fetch all plans for this request
       const res = await fetch(`/api/planning/admin/shifts?requestId=${selectedRequestId}`)
-      const plans = await res.json()
+      let plans = await res.json()
+      
+      if (pdfExportMode !== "ALL") {
+        plans = plans.filter((p: any) => {
+           const d = new Date(p.date)
+           const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+           date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7))
+           const yearStart = new Date(Date.UTC(date.getUTCFullYear(),0,1))
+           const weekNo = Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1)/7)
+           return weekNo === parseInt(pdfExportMode)
+        })
+      }
+      
+      if (plans.length === 0) {
+        alert("Für diesen Zeitraum liegen keine gespeicherten Pläne vor.")
+        setIsGeneratingPDF(false)
+        return
+      }
+
       setWeeklyPlans(plans)
 
       // Give React a moment to render the hidden pdfContainer
@@ -393,7 +426,8 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
       }
       
       const requestTitle = currentRequest.title.replace(/\s+/g, "_")
-      pdf.save(`Personalplan_${requestTitle}.pdf`)
+      const suffix = pdfExportMode === "ALL" ? "Gesamt" : `KW${pdfExportMode}`
+      pdf.save(`Personalplan_${requestTitle}_${suffix}.pdf`)
     } catch (e) {
       console.error("PDF generation error", e)
       alert("Fehler bei der PDF-Erzeugung.")
@@ -558,12 +592,25 @@ export default function DayPlanBuilder({ requests }: { requests: any[] }) {
 
       {/* ─── Footer actions ─── */}
       <div className={`${styles.builderFooter} ${styles.noPrint}`}>
-        <div className={styles.footerLeft}>
+        <div className={styles.footerLeft} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
           <Button variant="outline" onClick={handleCSV}>CSV Export</Button>
           <Button variant="outline" onClick={handlePrint}>🖨️ Drucken</Button>
-          <Button variant="outline" onClick={handleWeeklyPDF} disabled={isGeneratingPDF}>
-            {isGeneratingPDF ? "PDF wird generiert…" : "📄 Wochenplan (PDF)"}
-          </Button>
+          <div style={{ display: "flex", gap: "0.25rem", alignItems: "center", marginLeft: "0.5rem" }}>
+            <select 
+              value={pdfExportMode} 
+              onChange={e => setPdfExportMode(e.target.value)}
+              className={styles.selectInput}
+              style={{ width: "auto", margin: 0, padding: "0.4rem" }}
+            >
+              <option value="ALL">Gesamter Zeitraum</option>
+              {availableWeeks.map(w => (
+                <option key={w} value={w}>Nur KW {w}</option>
+              ))}
+            </select>
+            <Button variant="outline" onClick={handleWeeklyPDF} disabled={isGeneratingPDF}>
+              {isGeneratingPDF ? "Generiert..." : "📄 Als PDF laden"}
+            </Button>
+          </div>
         </div>
         <div className={styles.footerRight}>
           <Button variant="outline" onClick={() => handleSave("DRAFT")} disabled={isSaving}>
