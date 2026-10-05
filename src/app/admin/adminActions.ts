@@ -39,7 +39,7 @@ export async function sendDocumentsToAdvisor(
     const data = await resend.emails.send({
       from: "onboarding@hansimclub.de",
       replyTo: "onboarding@hansimclub.de",
-      to: "hallo@hansimclub.de",
+      to: "diana.mann@datevnet.de",
       subject: `Neue Mitarbeiter-Unterlagen: ${employeeName}`,
       html: `
         <p>Hallo,</p>
