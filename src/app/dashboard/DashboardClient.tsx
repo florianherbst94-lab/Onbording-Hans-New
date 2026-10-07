@@ -382,6 +382,12 @@ export default function DashboardClient({ user, documents, payslips, summary }: 
                         <div><span className={styles.shiftLabel}>Bereich</span><div className={styles.shiftValue}>{area}</div></div>
                         <div><span className={styles.shiftLabel}>Rolle</span><div className={styles.shiftValue}>{role}</div></div>
                         <div><span className={styles.shiftLabel}>Beginn</span><div className={styles.shiftValue}>{a.startTime || '??:??'}</div></div>
+                        {a.note && (
+                          <div style={{ flexBasis: "100%", marginTop: "0.25rem" }}>
+                            <span className={styles.shiftLabel}>Notiz</span>
+                            <div className={styles.shiftValue} style={{ whiteSpace: "pre-wrap" }}>{a.note}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </Card>

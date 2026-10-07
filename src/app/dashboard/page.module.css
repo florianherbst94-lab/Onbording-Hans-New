@@ -342,6 +342,7 @@
 
 .shiftDetails {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   border-top: 1px solid var(--border);
   padding-top: 0.75rem;
