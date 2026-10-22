@@ -19,6 +19,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
   const [note, setNote] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [resetKey, setResetKey] = useState(0)
 
   const totalHours = calculateTotalHours(startTime, endTime, breakMinutes)
   const validation = validateTimesheet(totalHours, breakMinutes)
@@ -61,6 +62,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
       setEndTime("")
       setBreakMinutes(0)
       setNote("")
+      setResetKey(k => k + 1)
       onSuccess()
     } catch (err: any) {
       setError(err.message)
@@ -72,20 +74,20 @@ export default function TimesheetForm({ onSuccess }: Props) {
   return (
     <div className={styles.formCard}>
       <h3 className={styles.formTitle}>Neuer Zeiteintrag</h3>
-      <form className={styles.formContainer}>
+      <form key={resetKey} className={styles.formContainer}>
         <div className={styles.formGroup}>
           <label>Datum</label>
-          <input type="date" value={date} onChange={e => setDate(e.target.value)} required />
+          <input type="date" defaultValue={date} onChange={e => setDate(e.target.value)} required />
         </div>
         
         <div className={styles.formRow}>
           <div className={styles.formGroup}>
             <label>Beginn</label>
-            <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+            <input type="time" defaultValue={startTime} onChange={e => setStartTime(e.target.value)} required />
           </div>
           <div className={styles.formGroup}>
             <label>Ende</label>
-            <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+            <input type="time" defaultValue={endTime} onChange={e => setEndTime(e.target.value)} required />
           </div>
         </div>
 
@@ -94,7 +96,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
           <input 
             type="number" 
             min="0" 
-            value={breakMinutes} 
+            defaultValue={breakMinutes || ""} 
             onChange={e => setBreakMinutes(parseInt(e.target.value) || 0)} 
           />
         </div>
@@ -104,7 +106,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
           <input 
             type="text" 
             placeholder="Besondere Vorkommnisse..." 
-            value={note} 
+            defaultValue={note} 
             onChange={e => setNote(e.target.value)} 
           />
         </div>
