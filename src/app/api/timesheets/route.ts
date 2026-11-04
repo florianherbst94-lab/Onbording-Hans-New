@@ -50,30 +50,57 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const { date, startTime, endTime, breakMinutes, totalHours, note, status, absenceType } = body
+    const { date, startTime, endTime, breakMinutes, totalHours, note, status, absenceType, userId: overrideUserId } = body
 
     if (!date || (!absenceType || absenceType === "NONE" ? (!startTime || !endTime || totalHours === undefined) : false)) {
       return NextResponse.json({ error: "Fehlende Pflichtfelder" }, { status: 400 })
     }
 
-    // Get current user to save their hourly wage as a snapshot if they are submitting
+    const isAdmin = (session.user as any).role === "ADMIN"
+    const targetUserId = (isAdmin && overrideUserId) ? overrideUserId : session.user.id
+
+    // Get user to save their hourly wage as a snapshot and check work schedules for absences
     const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: { hourlyWage: true }
+      where: { id: targetUserId },
+      select: { hourlyWage: true, timeTrackingType: true, workSchedules: true }
     })
+
+    if (!user) {
+      return NextResponse.json({ error: "Benutzer nicht gefunden" }, { status: 404 })
+    }
+
+    let finalTotalHours = Number(totalHours)
+    if (absenceType === "VACATION" || absenceType === "SICK") {
+      if (user.timeTrackingType === "TIME_ACCOUNT" && user.workSchedules) {
+        // JS getDay(): 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+        // DB weekday: 1 = Monday, ..., 7 = Sunday
+        const d = new Date(date)
+        const jsDay = d.getDay()
+        const dbWeekday = jsDay === 0 ? 7 : jsDay
+        
+        const schedule = user.workSchedules.find(s => s.weekday === dbWeekday)
+        if (schedule && schedule.enabled) {
+          finalTotalHours = schedule.targetMinutes / 60
+        } else {
+          finalTotalHours = 0
+        }
+      } else {
+        finalTotalHours = 0
+      }
+    }
 
     const timesheet = await prisma.timesheet.create({
       data: {
-        userId: session.user.id,
+        userId: targetUserId,
         date,
         startTime: absenceType !== "NONE" ? "00:00" : startTime,
         endTime: absenceType !== "NONE" ? "00:00" : endTime,
         absenceType: absenceType || "NONE",
         breakMinutes: Number(breakMinutes) || 0,
-        totalHours: Number(totalHours),
+        totalHours: finalTotalHours,
         note,
         status: status || "DRAFT",
-        hourlyWage: user?.hourlyWage || 13.90,
+        hourlyWage: user.hourlyWage || 13.90,
       },
     })
 

@@ -61,6 +61,7 @@ export default function TimesheetForm({ onSuccess }: Props) {
       setStartTime("")
       setEndTime("")
       setBreakMinutes(0)
+      setAbsenceType("NONE")
       setNote("")
       setResetKey(k => k + 1)
       onSuccess()
@@ -79,27 +80,40 @@ export default function TimesheetForm({ onSuccess }: Props) {
           <label>Datum</label>
           <input type="date" defaultValue={date} onChange={e => setDate(e.target.value)} required />
         </div>
-        
-        <div className={styles.formRow}>
-          <div className={styles.formGroup}>
-            <label>Beginn</label>
-            <input type="time" defaultValue={startTime} onChange={e => setStartTime(e.target.value)} required />
-          </div>
-          <div className={styles.formGroup}>
-            <label>Ende</label>
-            <input type="time" defaultValue={endTime} onChange={e => setEndTime(e.target.value)} required />
-          </div>
-        </div>
 
         <div className={styles.formGroup}>
-          <label>Pause (Minuten)</label>
-          <input 
-            type="number" 
-            min="0" 
-            defaultValue={breakMinutes || ""} 
-            onChange={e => setBreakMinutes(parseInt(e.target.value) || 0)} 
-          />
+          <label>Art des Eintrags</label>
+          <select value={absenceType} onChange={e => setAbsenceType(e.target.value)} style={{ padding: '0.8rem', borderRadius: '4px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)', width: '100%' }}>
+            <option value="NONE">Reguläre Arbeitszeit</option>
+            <option value="VACATION">Urlaub</option>
+            <option value="SICK">Krankheit</option>
+          </select>
         </div>
+        
+        {absenceType === "NONE" && (
+          <>
+            <div className={styles.formRow}>
+              <div className={styles.formGroup}>
+                <label>Beginn</label>
+                <input type="time" defaultValue={startTime} onChange={e => setStartTime(e.target.value)} required />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Ende</label>
+                <input type="time" defaultValue={endTime} onChange={e => setEndTime(e.target.value)} required />
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Pause (Minuten)</label>
+              <input 
+                type="number" 
+                min="0" 
+                defaultValue={breakMinutes || ""} 
+                onChange={e => setBreakMinutes(parseInt(e.target.value) || 0)} 
+              />
+            </div>
+          </>
+        )}
 
         <div className={styles.formGroup}>
           <label>Notiz (Optional)</label>
@@ -111,14 +125,21 @@ export default function TimesheetForm({ onSuccess }: Props) {
           />
         </div>
 
-        <div className={styles.summaryBox}>
-          <strong>Gesamtzeit: {totalHours} Stunden</strong>
-        </div>
+        {absenceType === "NONE" && (
+          <div className={styles.summaryBox}>
+            <strong>Gesamtzeit: {totalHours} Stunden</strong>
+          </div>
+        )}
+        {absenceType !== "NONE" && (
+          <div className={styles.summaryBox}>
+            <strong>Stunden werden automatisch berechnet (gemäß Arbeitsplan).</strong>
+          </div>
+        )}
 
-        {warnings.map((warn, i) => (
+        {absenceType === "NONE" && warnings.map((warn, i) => (
           <div key={`warn-${i}`} className={styles.warningBox}>⚠️ {warn}</div>
         ))}
-        {formErrors.map((formErr, i) => (
+        {absenceType === "NONE" && formErrors.map((formErr, i) => (
           <div key={`err-${i}`} className={styles.errorBox}>❌ {formErr}</div>
         ))}
         {error && <div className={styles.errorBox}>❌ {error}</div>}
@@ -127,13 +148,13 @@ export default function TimesheetForm({ onSuccess }: Props) {
           <Button 
             variant="outline" 
             onClick={(e) => handleSubmit(e, "DRAFT")}
-            disabled={loading || totalHours <= 0 || formErrors.length > 0}
+            disabled={loading || (absenceType === "NONE" && (totalHours <= 0 || formErrors.length > 0))}
           >
             Als Entwurf speichern
           </Button>
           <Button 
             onClick={(e) => handleSubmit(e, "SUBMITTED")}
-            disabled={loading || totalHours <= 0 || formErrors.length > 0}
+            disabled={loading || (absenceType === "NONE" && (totalHours <= 0 || formErrors.length > 0))}
           >
             Direkt einreichen
           </Button>

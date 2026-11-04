@@ -59,6 +59,49 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
   const [editId, setEditId] = useState<string | null>(null)
   const [editData, setEditData] = useState({ startTime: "", endTime: "", breakMinutes: 0 })
 
+  const [showCreateModal, setShowCreateModal] = useState(false)
+  const [createData, setCreateData] = useState({ userId: "", date: dailyDate, startTime: "", endTime: "", breakMinutes: 0, absenceType: "NONE", note: "" })
+
+  const handleCreate = async () => {
+    if (!createData.userId) return alert("Bitte wähle einen Mitarbeiter aus.")
+    if (!createData.date) return alert("Bitte gib ein Datum an.")
+    if (createData.absenceType === "NONE" && (!createData.startTime || !createData.endTime)) {
+      return alert("Bitte gib Start- und Endzeit an.")
+    }
+    
+    const totalHours = createData.absenceType === "NONE" 
+      ? calculateTotalHours(createData.startTime, createData.endTime, createData.breakMinutes)
+      : 0
+    
+    setLoadingId("CREATE")
+    try {
+      const res = await fetch("/api/timesheets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...createData,
+          totalHours,
+          status: "APPROVED" // Admins create approved entries directly
+        })
+      })
+      if (res.ok) {
+        const newEntry = await res.json()
+        const userObj = users.find(u => u.id === newEntry.userId)
+        newEntry.user = { name: userObj?.name, email: userObj?.email }
+        setTimesheets(prev => [newEntry, ...prev])
+        setShowCreateModal(false)
+        setCreateData({ userId: "", date: dailyDate, startTime: "", endTime: "", breakMinutes: 0, absenceType: "NONE", note: "" })
+      } else {
+        const err = await res.json()
+        alert("Fehler: " + err.error)
+      }
+    } catch (e) {
+      alert("Ein Fehler ist aufgetreten.")
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
   const startEdit = (t: AdminTimesheet) => {
     setEditId(t.id)
     setEditData({ startTime: t.startTime, endTime: t.endTime, breakMinutes: t.breakMinutes })
@@ -478,6 +521,7 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
           <p className={styles.subtitle}>Prüfe, verwalte und exportiere Arbeitszeiten.</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem' }}>
+          <Button onClick={() => setShowCreateModal(true)} variant="outline">+ Eintrag anlegen</Button>
           <Button onClick={exportCSV} variant="outline">CSV Export</Button>
           <Button onClick={exportPDF}>Monatsabschluss (PDF)</Button>
         </div>
@@ -705,6 +749,68 @@ export default function TimesheetAdminClient({ timesheets: initialTimesheets, us
             <div className={styles.modalActions}>
               <button className={styles.btnReject} onClick={cancelEdit} disabled={loadingId === editId}>Abbrechen</button>
               <button className={styles.btnApprove} style={{ background: '#0071e3', color: 'white' }} onClick={() => saveEdit(editId)} disabled={loadingId === editId}>Speichern</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showCreateModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowCreateModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <h3>Neuer Zeiteintrag</h3>
+            <p>Lege einen Eintrag für einen Mitarbeiter an (wird direkt genehmigt).</p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Mitarbeiter</label>
+                <select value={createData.userId} onChange={e => setCreateData({...createData, userId: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}>
+                  <option value="">Bitte wählen...</option>
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Datum</label>
+                <input type="date" value={createData.date} onChange={e => setCreateData({...createData, date: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Art des Eintrags</label>
+                <select value={createData.absenceType} onChange={e => setCreateData({...createData, absenceType: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }}>
+                  <option value="NONE">Reguläre Arbeitszeit</option>
+                  <option value="VACATION">Urlaub</option>
+                  <option value="SICK">Krankheit</option>
+                </select>
+              </div>
+
+              {createData.absenceType === "NONE" && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Beginn</label>
+                    <input type="time" value={createData.startTime} onChange={e => setCreateData({...createData, startTime: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Ende</label>
+                    <input type="time" value={createData.endTime} onChange={e => setCreateData({...createData, endTime: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Pause (Min)</label>
+                    <input type="number" value={createData.breakMinutes} onChange={e => setCreateData({...createData, breakMinutes: parseInt(e.target.value)||0})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }} />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.9rem', marginBottom: '0.3rem' }}>Notiz</label>
+                <input type="text" value={createData.note} onChange={e => setCreateData({...createData, note: e.target.value})} style={{ width: '100%', padding: '0.6rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--background)', color: 'var(--foreground)' }} />
+              </div>
+            </div>
+
+            <div className={styles.modalActions} style={{ marginTop: '1.5rem' }}>
+              <button className={styles.btnReject} onClick={() => setShowCreateModal(false)} disabled={loadingId === "CREATE"}>Abbrechen</button>
+              <button className={styles.btnApprove} style={{ background: '#0071e3', color: 'white' }} onClick={handleCreate} disabled={loadingId === "CREATE"}>Eintrag speichern</button>
             </div>
           </div>
         </div>

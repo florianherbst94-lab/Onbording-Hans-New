@@ -8,6 +8,7 @@ interface Props {
   initialTimeTrackingType: string
   initialWeeklyHours: number | null
   initialStartDate: string | null
+  initialBalance: number | null
   workSchedules: { weekday: number, targetMinutes: number, enabled: boolean }[]
 }
 
@@ -21,10 +22,11 @@ const WEEKDAYS = [
   { id: 7, label: "Sonntag" },
 ]
 
-export function TimeAccountEditor({ userId, initialTimeTrackingType, initialWeeklyHours, initialStartDate, workSchedules }: Props) {
+export function TimeAccountEditor({ userId, initialTimeTrackingType, initialWeeklyHours, initialStartDate, initialBalance, workSchedules }: Props) {
   const [trackingType, setTrackingType] = useState(initialTimeTrackingType || "SIMPLE")
   const [weeklyHours, setWeeklyHours] = useState(initialWeeklyHours || 0)
   const [startDate, setStartDate] = useState(initialStartDate || "")
+  const [balance, setBalance] = useState(initialBalance || 0)
   const [schedules, setSchedules] = useState(
     WEEKDAYS.map(day => {
       const existing = workSchedules.find(s => s.weekday === day.id)
@@ -44,6 +46,7 @@ export function TimeAccountEditor({ userId, initialTimeTrackingType, initialWeek
           timeTrackingType: trackingType,
           weeklyHours,
           timeAccountStartDate: startDate,
+          timeAccountInitialBalance: balance,
           schedules
         })
       })
@@ -104,6 +107,16 @@ export function TimeAccountEditor({ userId, initialTimeTrackingType, initialWeek
                 value={startDate} 
                 onChange={e => setStartDate(e.target.value)}
                 style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'white', color: 'black' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={{ display: 'block', marginBottom: '5px' }}>Start-Saldo (Stunden)</label>
+              <input 
+                type="number" 
+                value={balance} 
+                onChange={e => setBalance(parseFloat(e.target.value) || 0)}
+                style={{ width: '100%', padding: '8px', borderRadius: '4px', background: 'white', color: 'black' }}
+                step="0.5"
               />
             </div>
           </div>

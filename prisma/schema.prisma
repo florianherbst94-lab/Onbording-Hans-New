@@ -52,6 +52,7 @@ model User {
   timeTrackingType       String                  @default("SIMPLE") // SIMPLE, TIME_ACCOUNT
   weeklyHours            Float?
   timeAccountStartDate   DateTime?
+  timeAccountInitialBalance Int @default(0)
   accounts               Account[]
   documents              Document[]
   onboardingStatus       OnboardingStatus?

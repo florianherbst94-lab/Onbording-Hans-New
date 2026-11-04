@@ -219,6 +219,7 @@ export default async function ContractPage(props: { params: Promise<{ userId: st
             initialTimeTrackingType={user.timeTrackingType} 
             initialWeeklyHours={user.weeklyHours}
             initialStartDate={user.timeAccountStartDate ? user.timeAccountStartDate.toISOString().split('T')[0] : null}
+            initialBalance={user.timeAccountInitialBalance ? user.timeAccountInitialBalance / 60 : 0}
             workSchedules={user.workSchedules || []}
           />
         )}

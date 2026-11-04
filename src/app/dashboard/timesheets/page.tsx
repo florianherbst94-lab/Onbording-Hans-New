@@ -2,6 +2,7 @@ import { auth } from "@/auth"
 import { redirect } from "next/navigation"
 import { prisma } from "@/lib/prisma"
 import TimesheetClient from "./TimesheetClient"
+import { calculateTimeAccountBalance } from "@/lib/time-account-utils"
 
 export default async function TimesheetsPage() {
   const session = await auth()
@@ -12,12 +13,9 @@ export default async function TimesheetsPage() {
     select: { timeTrackingType: true }
   })
   
-  const now = new Date()
-  let timeAccount = null
+  let timeAccountBalance = null
   if (user?.timeTrackingType === "TIME_ACCOUNT") {
-    timeAccount = await prisma.timeAccountMonth.findUnique({
-      where: { userId_year_month: { userId: session.user.id, year: now.getFullYear(), month: now.getMonth() + 1 } }
-    })
+    timeAccountBalance = await calculateTimeAccountBalance(session.user.id)
   }
 
   const timesheets = await prisma.timesheet.findMany({
@@ -25,7 +23,7 @@ export default async function TimesheetsPage() {
     orderBy: { date: "desc" }
   })
 
-  return <TimesheetClient initialTimesheets={safeSerializeDates(timesheets)} timeAccount={timeAccount} timeTrackingType={user?.timeTrackingType || "SIMPLE"} />
+  return <TimesheetClient initialTimesheets={safeSerializeDates(timesheets)} timeAccountBalance={timeAccountBalance} timeTrackingType={user?.timeTrackingType || "SIMPLE"} />
 }
 
 function safeSerializeDates(obj: any): any {

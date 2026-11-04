@@ -9,14 +9,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { userId, timeTrackingType, weeklyHours, timeAccountStartDate, schedules } = await req.json()
+    const { userId, timeTrackingType, weeklyHours, timeAccountStartDate, timeAccountInitialBalance, schedules } = await req.json()
 
     await prisma.user.update({
       where: { id: userId },
       data: {
         timeTrackingType,
         weeklyHours: weeklyHours ? parseFloat(weeklyHours) : null,
-        timeAccountStartDate: timeAccountStartDate ? new Date(timeAccountStartDate) : null
+        timeAccountStartDate: timeAccountStartDate ? new Date(timeAccountStartDate) : null,
+        timeAccountInitialBalance: timeAccountInitialBalance ? Math.round(parseFloat(timeAccountInitialBalance) * 60) : 0
       }
     })
 

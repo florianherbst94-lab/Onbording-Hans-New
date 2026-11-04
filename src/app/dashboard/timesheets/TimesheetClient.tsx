@@ -7,7 +7,7 @@ import TimesheetForm from "./TimesheetForm"
 import styles from "./timesheet.module.css"
 
 interface Props {
-  timeAccount?: any
+  timeAccountBalance?: { balanceMinutes: number, targetMinutes: number, actualMinutes: number } | null
   timeTrackingType?: string
   initialTimesheets: TimesheetEntry[]
 }
@@ -19,7 +19,7 @@ const STATUS_MAP = {
   REJECTED: { label: "Abgelehnt", color: "#d93025", bg: "rgba(217, 48, 37, 0.1)" },
 }
 
-export default function TimesheetClient({ initialTimesheets, timeAccount, timeTrackingType }: Props) {
+export default function TimesheetClient({ initialTimesheets, timeAccountBalance, timeTrackingType }: Props) {
   const [timesheets, setTimesheets] = useState<TimesheetEntry[]>(initialTimesheets)
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -99,6 +99,14 @@ export default function TimesheetClient({ initialTimesheets, timeAccount, timeTr
               <span className={styles.summaryLabel}>Verdienst (diesen Monat)</span>
               <span className={styles.summaryValue}>{isMounted ? monthlyEarnings.toLocaleString('de-DE', { style: 'currency', currency: 'EUR' }) : '...'}</span>
             </div>
+            {timeTrackingType === "TIME_ACCOUNT" && timeAccountBalance && (
+              <div className={styles.summaryItem} style={{ backgroundColor: timeAccountBalance.balanceMinutes >= 0 ? "rgba(40, 167, 69, 0.1)" : "rgba(217, 48, 37, 0.1)" }}>
+                <span className={styles.summaryLabel}>Zeitkonto Saldo</span>
+                <span className={styles.summaryValue} style={{ color: timeAccountBalance.balanceMinutes >= 0 ? "#28a745" : "#d93025" }}>
+                  {isMounted ? (timeAccountBalance.balanceMinutes > 0 ? "+" : "") + (timeAccountBalance.balanceMinutes / 60).toFixed(2) : "..."}h
+                </span>
+              </div>
+            )}
           </div>
 
           <div className={styles.listHeader}>
