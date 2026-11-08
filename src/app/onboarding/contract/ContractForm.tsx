@@ -226,9 +226,23 @@ export function ContractForm({ personalData, startDate, hourlyWage, jobRole, con
         pageCanvas.width = canvas.width
         pageCanvas.height = sliceHeight
         const ctx = pageCanvas.getContext("2d")!
-        ctx.fillStyle = "#ffffff"
-        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
-        ctx.drawImage(canvas, 0, yOffset, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight)
+        // Apply a filter to make the text black. This is a bit of a hack but it works for signatures and text
+        // since we know the background is white.
+        const imgDataUrl = canvas.toDataURL("image/png")
+        const img = new Image()
+        img.src = imgDataUrl
+        await new Promise(resolve => {
+            img.onload = () => {
+                ctx.fillStyle = "#ffffff"
+                ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height)
+                
+                // Draw image with dark/black filter
+                ctx.filter = 'contrast(200%) grayscale(100%) brightness(50%)'
+                ctx.drawImage(img, 0, yOffset, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight)
+                ctx.filter = 'none'
+                resolve(null)
+            }
+        })
         
         const pageImgData = pageCanvas.toDataURL("image/png")
         const sliceHeightMM = (sliceHeight * usableWidth) / canvas.width
