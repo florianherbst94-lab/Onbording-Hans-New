@@ -39,6 +39,7 @@ export function PrintButton({
       wrapper.style.top = "0"
       wrapper.style.width = "794px" // A4 width at 96dpi
       wrapper.style.backgroundColor = "#ffffff"
+      wrapper.style.color = "#000000" // Ensure text is black, overriding global dark mode colors
       wrapper.appendChild(clone)
       document.body.appendChild(wrapper)
 
